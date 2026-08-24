@@ -1,6 +1,9 @@
-RussianKeyboardTrainer 1.0.0
-Status: initial training pipeline
-Scope: Context Ranker v0 only
-GEC tagger: intentionally NOT implemented yet
-Teacher/distillation: intentionally NOT required for v0
-Evaluation corpora from keyboard project: local-only under data/eval; excluded from Git and train by policy
+RussianKeyboardTrainer 1.1.0 CoGo
+STATUS: READY FOR CI / GPU TRAINING
+- listwise rank training
+- KEEP-margin calibration
+- leakage-safe sentence splits
+- hard-negative mining
+- ONNX + INT8 export metadata
+- pytest: 6 passed locally
+- CI: validate includes dataset + 1-epoch training smoke
