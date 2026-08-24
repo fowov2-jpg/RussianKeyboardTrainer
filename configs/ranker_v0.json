@@ -5,8 +5,8 @@
   "nhead": 4,
   "num_layers": 3,
   "dim_feedforward": 384,
-  "dropout": 0.10,
-  "batch_size": 256,
+  "dropout": 0.1,
+  "batch_size": 64,
   "grad_accum_steps": 1,
   "epochs": 4,
   "learning_rate": 0.0006,
@@ -16,5 +16,6 @@
   "patience": 2,
   "num_workers": 2,
   "amp": true,
-  "compile": false
+  "compile": false,
+  "max_false_correction_rate": 0.005
 }
