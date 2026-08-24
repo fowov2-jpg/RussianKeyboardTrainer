@@ -5,5 +5,5 @@ STATUS: READY FOR CI / GPU TRAINING
 - leakage-safe sentence splits
 - hard-negative mining
 - ONNX + INT8 export metadata
-- pytest: 6 passed locally
+- pytest: 8 passed locally
 - CI: validate includes dataset + 1-epoch training smoke
