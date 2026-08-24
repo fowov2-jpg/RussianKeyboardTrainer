@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "russian-keyboard-trainer"
-version = "1.0.0"
+version = "1.1.0"
 description = "Training pipeline for compact Russian Android keyboard context ranker"
 requires-python = ">=3.10"
 dependencies = [
