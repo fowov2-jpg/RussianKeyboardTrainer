@@ -17,3 +17,14 @@ jobs:
       - run: pytest -q
       - run: python scripts/make_demo_corpus.py
       - run: rsk-build --clean data/examples/demo_clean.txt --out data/generated --synthetic-groups 120 --keep-groups 100
+      - name: Listwise smoke train
+        run: |
+          python - <<'PY'
+          import json
+          c=json.load(open('configs/ranker_small.json'))
+          c.update({'epochs':1,'batch_size':32,'d_model':64,'nhead':4,'num_layers':1,'dim_feedforward':128,'num_workers':0,'amp':False,'patience':1})
+          json.dump(c,open('/tmp/smoke.json','w'))
+          PY
+          rsk-train --config /tmp/smoke.json --out artifacts/ci-smoke
+      - name: Verify calibration artifact
+        run: test -s artifacts/ci-smoke/best.pt && test -s artifacts/ci-smoke/calibration.json
