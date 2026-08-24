@@ -1,0 +1,19 @@
+name: validate
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[dev]'
+      - run: pytest -q
+      - run: python scripts/make_demo_corpus.py
+      - run: rsk-build --clean data/examples/demo_clean.txt --out data/generated --synthetic-groups 120 --keep-groups 100

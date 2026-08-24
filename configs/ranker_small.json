@@ -1,0 +1,20 @@
+{
+  "seed": 20260824,
+  "max_chars": 80,
+  "d_model": 96,
+  "nhead": 4,
+  "num_layers": 2,
+  "dim_feedforward": 256,
+  "dropout": 0.10,
+  "batch_size": 384,
+  "grad_accum_steps": 1,
+  "epochs": 3,
+  "learning_rate": 0.0008,
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.08,
+  "keep_loss_weight": 1.40,
+  "patience": 1,
+  "num_workers": 2,
+  "amp": true,
+  "compile": false
+}

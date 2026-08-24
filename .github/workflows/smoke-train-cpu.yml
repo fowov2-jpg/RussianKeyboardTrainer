@@ -1,0 +1,21 @@
+name: smoke-train-cpu
+on:
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -e '.[dev]'
+      - run: python scripts/make_demo_corpus.py
+      - run: rsk-build --clean data/examples/demo_clean.txt --out data/generated --synthetic-groups 300 --keep-groups 300
+      - run: |
+          python - <<'PY'
+          import json
+          p='configs/ranker_v0.json'; c=json.load(open(p)); c.update({'epochs':1,'batch_size':64,'d_model':64,'nhead':4,'num_layers':1,'dim_feedforward':128,'num_workers':0,'amp':False}); json.dump(c,open('/tmp/smoke.json','w'))
+          PY
+      - run: rsk-train --config /tmp/smoke.json --out artifacts/smoke

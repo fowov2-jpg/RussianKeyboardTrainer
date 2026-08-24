@@ -1,0 +1,36 @@
+RussianKeyboardTrainer 1.0.0 CoGo — локальная валидация
+Дата: 2026-08-24
+
+Проверено в текущей среде:
+- python compileall: PASS
+- pytest: 3/3 PASS
+- dataset generation: PASS
+- CPU smoke training: PASS
+- evaluation: PASS
+- hard-negative mining: PASS
+
+Smoke dataset:
+- train rows: 1481
+- validation rows: 189
+- test rows: 177
+- test groups: 60
+
+Smoke model (умышленно уменьшенный: 1 layer / d_model=64 / 1 epoch):
+- test accuracy: 0.6000
+- KEEP accuracy: 0.9355
+- false correction rate: 0.0645
+- typo recall: 0.2414
+- utility: 0.4065
+
+Эти числа НЕ являются качеством production Ranker: smoke проверяет только целостность pipeline на крошечном демонстрационном corpus.
+
+Production ranker_v0 config:
+- layers: 3
+- d_model: 128
+- parameters: 530,945
+- raw FP32 weights theoretical size: ~2.03 MiB
+- INT8 weight-only theoretical floor: ~0.51 MiB (реальный ONNX будет больше из-за graph/metadata/non-quantized ops)
+
+Не проверено локально:
+- ONNX export/runtime/INT8: среда не имеет onnx/onnxruntime и не имеет доступа к PyPI.
+Это выполняется workflow в GitHub/на runner-е с зависимостями.

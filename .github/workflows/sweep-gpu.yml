@@ -1,0 +1,52 @@
+name: sweep-ranker-gpu
+on:
+  workflow_dispatch:
+    inputs:
+      clean_corpus:
+        description: Absolute clean-corpus path on each self-hosted GPU runner
+        required: true
+        default: /opt/rsk-data/clean_ru.txt
+      synthetic_groups:
+        required: true
+        default: '25000'
+      keep_groups:
+        required: true
+        default: '20000'
+permissions:
+  contents: read
+jobs:
+  sweep:
+    strategy:
+      fail-fast: false
+      matrix:
+        experiment:
+          - name: small
+            config: configs/ranker_small.json
+          - name: base
+            config: configs/ranker_v0.json
+          - name: wide
+            config: configs/ranker_wide.json
+    runs-on: [self-hosted, linux, x64, gpu]
+    timeout-minutes: 480
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -e '.[dev]'
+      - name: Build dataset
+        run: |
+          test -f '${{ inputs.clean_corpus }}'
+          rsk-build --clean '${{ inputs.clean_corpus }}' --out data/generated \
+            --synthetic-groups '${{ inputs.synthetic_groups }}' \
+            --keep-groups '${{ inputs.keep_groups }}'
+      - name: Train ${{ matrix.experiment.name }}
+        run: rsk-train --config '${{ matrix.experiment.config }}' --out 'artifacts/${{ matrix.experiment.name }}'
+      - name: Evaluate
+        run: rsk-eval --checkpoint 'artifacts/${{ matrix.experiment.name }}/best.pt' --tokenizer 'artifacts/${{ matrix.experiment.name }}/tokenizer.json' --data data/generated/test.jsonl | tee 'artifacts/${{ matrix.experiment.name }}/test_metrics.json'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: 'sweep-${{ matrix.experiment.name }}'
+          path: 'artifacts/${{ matrix.experiment.name }}/'
+          retention-days: 14

@@ -1,0 +1,66 @@
+name: train-ranker-gpu
+on:
+  workflow_dispatch:
+    inputs:
+      run_name:
+        description: Experiment name
+        required: true
+        default: ranker_v0
+      config:
+        description: Config path
+        required: true
+        default: configs/ranker_v0.json
+      clean_corpus:
+        description: Absolute path to clean corpus on self-hosted runner
+        required: true
+        default: /opt/rsk-data/clean_ru.txt
+      synthetic_groups:
+        description: Synthetic typo groups
+        required: true
+        default: '50000'
+      keep_groups:
+        description: KEEP/safety groups
+        required: true
+        default: '40000'
+permissions:
+  contents: read
+jobs:
+  train:
+    runs-on: [self-hosted, linux, x64, gpu]
+    timeout-minutes: 720
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[dev]'
+      - name: GPU diagnostics
+        run: |
+          python - <<'PY'
+          import torch
+          print('torch', torch.__version__)
+          print('cuda', torch.cuda.is_available())
+          if torch.cuda.is_available(): print(torch.cuda.get_device_name(0))
+          assert torch.cuda.is_available(), 'GPU runner expected'
+          PY
+      - name: Build deterministic dataset
+        run: |
+          test -f '${{ inputs.clean_corpus }}'
+          rsk-build --clean '${{ inputs.clean_corpus }}' --out data/generated \
+            --synthetic-groups '${{ inputs.synthetic_groups }}' \
+            --keep-groups '${{ inputs.keep_groups }}'
+      - name: Train
+        run: rsk-train --config '${{ inputs.config }}' --out 'artifacts/${{ inputs.run_name }}'
+      - name: Evaluate
+        run: rsk-eval --checkpoint 'artifacts/${{ inputs.run_name }}/best.pt' --tokenizer 'artifacts/${{ inputs.run_name }}/tokenizer.json' --data data/generated/test.jsonl | tee 'artifacts/${{ inputs.run_name }}/test_metrics.json'
+      - name: Mine hard negatives
+        run: rsk-mine --checkpoint 'artifacts/${{ inputs.run_name }}/best.pt' --tokenizer 'artifacts/${{ inputs.run_name }}/tokenizer.json' --data data/generated/test.jsonl --out 'artifacts/${{ inputs.run_name }}/hard_negatives.jsonl'
+      - name: Export ONNX + INT8
+        run: rsk-export --checkpoint 'artifacts/${{ inputs.run_name }}/best.pt' --out 'artifacts/${{ inputs.run_name }}/ranker.onnx'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: '${{ inputs.run_name }}'
+          path: 'artifacts/${{ inputs.run_name }}/'
+          retention-days: 30
