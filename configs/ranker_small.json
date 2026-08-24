@@ -5,16 +5,17 @@
   "nhead": 4,
   "num_layers": 2,
   "dim_feedforward": 256,
-  "dropout": 0.10,
-  "batch_size": 384,
+  "dropout": 0.1,
+  "batch_size": 96,
   "grad_accum_steps": 1,
   "epochs": 3,
   "learning_rate": 0.0008,
   "weight_decay": 0.01,
   "warmup_ratio": 0.08,
-  "keep_loss_weight": 1.40,
+  "keep_loss_weight": 1.4,
   "patience": 1,
   "num_workers": 2,
   "amp": true,
-  "compile": false
+  "compile": false,
+  "max_false_correction_rate": 0.005
 }
