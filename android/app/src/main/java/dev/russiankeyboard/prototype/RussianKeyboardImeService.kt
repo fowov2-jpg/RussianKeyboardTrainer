@@ -96,8 +96,13 @@ class RussianKeyboardImeService : InputMethodService() {
 
     private fun handleSpace() {
         val connection = currentInputConnection ?: return
+        // Do not read password or other sensitive input at all, even locally.
+        if (isSensitiveField()) {
+            connection.commitText(" ", 1)
+            return
+        }
         val before = connection.getTextBeforeCursor(96, 0)?.toString().orEmpty()
-        val edit = engine.onSpace(before, isSensitiveField())
+        val edit = engine.onSpace(before)
         if (edit == null || !before.endsWith(edit.expectedSuffix)) {
             connection.commitText(" ", 1)
             return
