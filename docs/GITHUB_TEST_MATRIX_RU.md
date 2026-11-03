@@ -7,22 +7,26 @@
 | --- | --- | --- |
 | `validate` | Ubuntu Python 3.11 | unit tests, duplicate-safe split, 1-epoch listwise demo train, KEEP calibration, экспорт FP32/INT8 ONNX, ONNX Runtime на CPU, форму выходов и численную близость |
 | `android-build` | Ubuntu + SDK 35 | Kotlin JVM unit tests, Android lint, сборка debug APK |
-| `android-emulator` | Android emulator API 35 / 3072 MB | Instrumentation: manifest/IME permission/no INTERNET, активность с полем ввода, вызов корректора на Android runtime, регистрация IME в системе и нажатия по реальной раскладке с автозаменой после пробела |
+| `android-emulator` | Android emulator API 35 / 3072 MB | Instrumentation: manifest/IME permission/no INTERNET, активность с полем ввода, вызов корректора на Android runtime, регистрация IME, реальный набор с автозаменой после пробела и Undo по Backspace |
+| `android-onnx-smoke` | Android emulator API 35 / 3072 MB | Временная упаковка синтетической INT8-модели, численное сравнение Python и Android, Kotlin-токенизация, P50/P95/max и процессная PSS; строгая проверка, что instrumentation не пропущен |
 
 ## Просмотр результата
 
 GitHub → Actions → выберите workflow и последний запуск **для текущего commit SHA**.
 Во вкладке Artifacts доступны APK, Python-модельные метрики и Android test reports.
 Android emulator workflow запускается на Pull Request и вручную (`workflow_dispatch`).
-Если emulator runner недоступен, workflow должен показывать failure — не считать
-устройство протестированным.
+Для образа Android 35 оба workflow делают до трёх попыток скачивания с проверкой
+`source.properties`: периодически GitHub SDK отдаёт повреждённый ZIP, до запуска
+самого приложения. После исчерпания попыток CI должен показывать failure — не
+считать устройство протестированным. Замеры сохраняются только при реально
+выполненном тесте; эмулятор не является заменой физическому смартфону.
 
 ## Что НЕ покрыто
 
 - Автоматизированный тест ввода использует эмулятор и UiAutomator. Он покрывает короткий happy-path и Undo после автозамены; составление текста, выделения, длинная история и прочие сценарии InputConnection пока не проверены.
 - При сбое отображения IME тест повторно касается реального поля и запрашивает открытие клавиатуры, но НЕ пропускает проверку: если клавиши не появятся, CI будет красным. Для диагностики сохраняется дамп InputMethodManager, состояние окон и снимок только искусственного тестового экрана.
 - Точность русских исправлений на независимом корпусе, метрики ложных исправлений.
-- ONNX Runtime внутри Android APK: модели пока НЕ включены.
+- В Android APK интегрирован ONNX Runtime, но в обычную сборку **не включаются веса синтетической модели**. Только отдельный smoke workflow временно добавляет их в test APK. Автоматическая нейросетевая коррекция в IME ещё не включена.
 - Физические смартфоны с 3–4 ГБ: батарея, нагрев, P50/P95 отклика, реальная PSS IME.
 - Реконструкция адресата, русский контекстный род и streaming punctuation.
 - Эмуляторный `dumpsys meminfo` относится к тестовому запуску Activity, а не замеру

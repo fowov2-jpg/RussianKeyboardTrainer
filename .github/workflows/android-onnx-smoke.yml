@@ -52,6 +52,24 @@ jobs:
           gradle-version: '8.9'
       - name: Install Android SDK 35
         run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Preinstall Android 35 emulator image (retry corrupt SDK downloads)
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="system-images;android-35;google_apis;x86_64"
+          target="$ANDROID_HOME/system-images/android-35/google_apis/x86_64/source.properties"
+          for attempt in 1 2 3; do
+            if sdkmanager --install "$image" && test -s "$target"; then
+              echo "Verified Android 35 Google APIs x86_64 system image"
+              exit 0
+            fi
+            echo "::warning::Android system image download failed (attempt $attempt/3); retrying"
+            rm -rf "$ANDROID_HOME/system-images/android-35/google_apis/x86_64"
+            rm -rf "$HOME/.android/cache"
+            sleep $((attempt * 5))
+          done
+          echo "::error::Android system image unavailable after three attempts"
+          exit 1
       - name: KVM permissions
         run: |
           if test -e /dev/kvm; then sudo chmod 666 /dev/kvm; fi
