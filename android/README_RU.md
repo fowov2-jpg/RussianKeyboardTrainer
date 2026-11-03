@@ -16,7 +16,7 @@ gradle -p android --no-daemon testDebugUnitTest assembleDebug
 ```
 
 После успешного GitHub Actions `android-build` debug APK доступен в Artifacts.
-Путь сборки: `android/app/build/outputs/apk/debug/app-debug.apk`.
+Путь сборки: `android/app/build/outputs/apk/debug/`. В GitHub Artifacts лежат отдельные APK: `app-arm64-v8a-debug.apk` (большинство современных ARM64), `app-armeabi-v7a-debug.apk` (старые 32-bit ARM) и `app-x86_64-debug.apk` (эмулятор). Выбирай APK под архитектуру телефона.
 
 ## Использование
 

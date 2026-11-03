@@ -31,5 +31,5 @@ GitHub Actions → workflow `android-onnx-smoke`. Тест
 тест пропускается в обычной Android-сборке; отдельный smoke workflow обязательно
 упаковывает assets перед запуском. При ошибке загрузки/инференса CI будет красным.
 
-Контрольный путь к APK теста: `android/app/build/outputs/apk/debug/app-debug.apk`
+Контрольный путь к APK теста: `android/app/build/outputs/apk/debug/app-x86_64-debug.apk` на эмуляторе; мобильные APK выпускаются отдельно для `arm64-v8a` и `armeabi-v7a`
 внутри workflow. Этот артефакт **не является пользовательским релизом**.

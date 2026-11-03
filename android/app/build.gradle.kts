@@ -7,6 +7,16 @@ android {
     namespace = "dev.russiankeyboard.prototype"
     compileSdk = 35
 
+    // Avoid shipping three CPU architectures inside one large APK.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
     defaultConfig {
         applicationId = "dev.russiankeyboard.prototype"
         minSdk = 26

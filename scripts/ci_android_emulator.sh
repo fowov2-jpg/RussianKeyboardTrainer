@@ -2,7 +2,7 @@
 set -euo pipefail
 APP="dev.russiankeyboard.prototype"
 IME="$APP/.RussianKeyboardImeService"
-APK="android/app/build/outputs/apk/debug/app-debug.apk"
+APK="android/app/build/outputs/apk/debug/app-x86_64-debug.apk"
 mkdir -p reports/emulator
 
 gradle -p android --no-daemon --max-workers=2 assembleDebug assembleDebugAndroidTest
