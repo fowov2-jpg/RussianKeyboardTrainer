@@ -10,8 +10,13 @@ gradle -p android --no-daemon --max-workers=2 assembleDebug assembleDebugAndroid
 # ONNX smoke verifies only numeric inference. It must not depend on the
 # unrelated (potentially flaky) soft-keyboard visibility scenario.
 if [ "${ONNX_ONLY:-0}" = "1" ]; then
+  adb logcat -c
   gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest \
     -Pandroid.testInstrumentationRunnerArguments.class=dev.russiankeyboard.prototype.OnDeviceRankerTest
+  adb logcat -d -v brief -s RSK_ONNX_BENCH:I '*:S' > reports/emulator/onnx-benchmark-logcat.txt
+  python scripts/ci_parse_android_benchmark.py \
+    --log reports/emulator/onnx-benchmark-logcat.txt \
+    --out reports/emulator/onnx-benchmark.json
   exit 0
 fi
 

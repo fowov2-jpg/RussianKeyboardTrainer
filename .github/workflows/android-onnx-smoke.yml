@@ -68,6 +68,13 @@ jobs:
           script: ONNX_ONLY=1 bash scripts/ci_android_emulator.sh
       - name: Require real ONNX instrumentation PASS (not skipped)
         run: python scripts/ci_assert_android_onnx.py android/app/build/outputs/androidTest-results/connected
+      - name: Report Android synthetic ONNX latency / PSS
+        if: success()
+        run: |
+          echo '### Android synthetic ONNX inference (not real phone performance)' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat reports/emulator/onnx-benchmark.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
       - name: Publish test reports
         if: always()
         uses: actions/upload-artifact@v4
