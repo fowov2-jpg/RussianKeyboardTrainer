@@ -39,6 +39,10 @@ jobs:
           heap-size: 256M
           emulator-boot-timeout: 600
           script: |
+            gradle -p android --no-daemon --max-workers=2 assembleDebug assembleDebugAndroidTest
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell ime enable dev.russiankeyboard.prototype/.RussianKeyboardImeService
+            adb shell ime set dev.russiankeyboard.prototype/.RussianKeyboardImeService
             gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest
             mkdir -p reports/emulator
             adb shell ime list -s | tee reports/emulator/registered-ime.txt
