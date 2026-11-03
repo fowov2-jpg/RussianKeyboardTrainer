@@ -5,10 +5,19 @@ from .dataset import iter_clean_sentences, generate_from_clean, add_keep_groups,
 
 
 def split_sentences(sentences: list[str], seed: int = 1):
-    items = list(sentences)
-    random.Random(seed).shuffle(items)
-    n = len(items); a = int(n * .8); b = int(n * .9)
-    return items[:a], items[a:b], items[b:]
+    # Keep repeated (and whitespace/case-normalized) sentences in one split.
+    # Demo corpora and public text datasets commonly contain duplicates; a
+    # naive row-level split would leak identical text into validation/test.
+    groups = {}
+    for sentence in sentences:
+        key = " ".join(sentence.split()).casefold()
+        groups.setdefault(key, []).append(sentence)
+    keys = list(groups)
+    random.Random(seed).shuffle(keys)
+    n = len(keys); a = int(n * .8); b = int(n * .9)
+    def collect(selected):
+        return [sentence for key in selected for sentence in groups[key]]
+    return collect(keys[:a]), collect(keys[a:b]), collect(keys[b:])
 
 
 def split_by_group(rows, seed=1):

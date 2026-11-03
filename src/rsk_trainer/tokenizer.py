@@ -39,7 +39,7 @@ class CharTokenizer:
         typed = typed[:24]
         candidate = candidate[:24]
         context_budget = max(0, budget - len(typed) - len(candidate))
-        left_context = left_context[-context_budget:]
+        left_context = left_context[-context_budget:] if context_budget else ""
         seq = [self.cls_id]
         for part in (left_context, typed, candidate):
             seq.extend(self.stoi.get(ch, self.unk_id) for ch in part)

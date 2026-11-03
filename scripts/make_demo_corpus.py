@@ -5,4 +5,6 @@ lines = [
 "Пожалуйста отправьте мне окончательный отчёт.", "Завтра состоится важное совещание.", "Клавиатура должна сохранять правильные слова.",
 "Пользователь быстро печатает сообщение на телефоне.", "Нужный документ находится в папке проекта.", "Мы довольны принятым решением."
 ]
-Path("data/examples/demo_clean.txt").write_text("\n".join(lines)*100+"\n", encoding="utf-8")
+destination = Path("data/examples/demo_clean.txt")
+destination.parent.mkdir(parents=True, exist_ok=True)
+destination.write_text("\n".join(lines)*100+"\n", encoding="utf-8")
