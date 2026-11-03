@@ -25,7 +25,9 @@
 
 ## Проверка
 
-GitHub Actions → workflow `android-onnx-smoke`. Тест
+GitHub Actions → workflow `android-onnx-smoke`. В нём включён режим
+`ONNX_ONLY=1`: выполняется исключительно тест модели, а не UiAutomator-тест
+экранной клавиатуры, который проверяется отдельным workflow. Тест
 `OnDeviceRankerTest.quantizedOnnxScoresMatchPythonOnTheEmulator` сравнивает
 скоринги INT8 CPU Python и Android с допуском 0.08. Если модель не упакована,
 тест пропускается в обычной Android-сборке; отдельный smoke workflow обязательно

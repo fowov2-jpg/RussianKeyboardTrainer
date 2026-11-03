@@ -6,6 +6,15 @@ APK="android/app/build/outputs/apk/debug/app-x86_64-debug.apk"
 mkdir -p reports/emulator
 
 gradle -p android --no-daemon --max-workers=2 assembleDebug assembleDebugAndroidTest
+
+# ONNX smoke verifies only numeric inference. It must not depend on the
+# unrelated (potentially flaky) soft-keyboard visibility scenario.
+if [ "${ONNX_ONLY:-0}" = "1" ]; then
+  gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest \
+    -Pandroid.testInstrumentationRunnerArguments.class=dev.russiankeyboard.prototype.OnDeviceRankerTest
+  exit 0
+fi
+
 adb install -r "$APK"
 adb shell am start -n "$APP/.MainActivity"
 
