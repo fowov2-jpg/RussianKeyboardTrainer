@@ -1,6 +1,6 @@
 # Критерии выпуска Russian Keyboard (проект, не объявление релиза)
 
-Обновлено: 2026-11-04, 01:00 МСК. Последний полностью зелёный commit до изменения CI: `63ffdf25ef7f6ee2f144ca0c8b920c80a63e5b84`.
+Обновлено: 2026-11-04, 02:00 МСК. Последний подтверждённый полностью зелёный HEAD: `fafd1b49915712565348bdd9b6df1114f75cff7c`.
 Этот документ — **чеклист допуска**, а не свидетельство готовности. При любом новом коммите
 все CI-ссылки и результаты требуется перепроверять по **новому HEAD**.
 
@@ -12,12 +12,12 @@
 - [x] Детерминированные исправления ограничены словарём, границами слова и безопасным регистром.
 - [x] Одноразовая отмена исправления Backspace покрыта unit и emulator тестами.
 - [x] Debug APK разделены по `arm64-v8a`, `armeabi-v7a`, `x86_64`; инструкция установки в `android/README_RU.md`.
-- [x] На SHA `63ffdf2` успешны четыре workflow:
-  [validate](https://github.com/fowov2-jpg/RussianKeyboardTrainer/actions/runs/41718482688),
-  [android-build](https://github.com/fowov2-jpg/RussianKeyboardTrainer/actions/runs/41718482740),
-  [android-emulator](https://github.com/fowov2-jpg/RussianKeyboardTrainer/actions/runs/41718482684),
-  [android-onnx-smoke](https://github.com/fowov2-jpg/RussianKeyboardTrainer/actions/runs/41718482685).
-- [ ] Подтвердить, что **merged APK** не содержит INTERNET и нежелательных permissions: в CI добавлен fail-closed аудит `aapt dump permissions` каждого APK после сборки. До успешного прогона на новом SHA пункт остаётся открытым.
+- [x] На SHA `fafd1b4` успешно завершены все четыре workflow:
+  [validate](https://github.com/fowov2-jpg/RussianKeyboardTrainer/actions/runs/41727552001),
+  [android-build](https://github.com/fowov2-jpg/RussianKeyboardTrainer/actions/runs/41727551841),
+  [android-emulator](https://github.com/fowov2-jpg/RussianKeyboardTrainer/actions/runs/41727551900),
+  [android-onnx-smoke](https://github.com/fowov2-jpg/RussianKeyboardTrainer/actions/runs/41727551970).
+- [x] CI `android-build` на `fafd1b4` успешно выполнил fail-closed аудит `aapt dump permissions` всех собранных debug APK; нежелательные запрошенные permissions, включая INTERNET, не обнаружены. Это не заменяет отдельный аудит будущей release-сборки.
 - [ ] Проверить подпись, install/upgrade, версионирование и воспроизводимую release-сборку. Сейчас `versionName=0.1.0`, `versionCode=1`, CI создаёт **debug**, не подписанный production APK.
 - [ ] Расширить регрессии IME: курсор в середине текста, выделение, составление текста, переключение полей/приложений, Undo после смены контекста, многострочный ввод.
 - [ ] Ручной smoke на физическом Android: установка, выбор IME, ввод, чувствительные поля, восстановление после перезапуска.
