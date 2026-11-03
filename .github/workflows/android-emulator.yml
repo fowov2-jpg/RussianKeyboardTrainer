@@ -32,7 +32,7 @@ jobs:
       - name: Allow KVM on Linux
         run: |
           if test -e /dev/kvm; then sudo chmod 666 /dev/kvm; fi
-      - name: Emulator API 30, 3 GB RAM — instrumentation and IME
+      - name: Emulator API 35, 3 GB RAM — instrumentation and IME
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35

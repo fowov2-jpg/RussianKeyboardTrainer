@@ -5,6 +5,19 @@ IME="$APP/.RussianKeyboardImeService"
 APK="android/app/build/outputs/apk/debug/app-x86_64-debug.apk"
 mkdir -p reports/emulator
 
+# Fail closed, but keep diagnostics and an emulator-only screenshot on error.
+# All app input in these tests is synthetic and never collected from real users.
+collect_failure_diagnostics() {
+  local exit_code=$?
+  if [ "$exit_code" -ne 0 ] && [ "${ONNX_ONLY:-0}" != "1" ]; then
+    adb shell settings get secure default_input_method > reports/emulator/selected-ime-on-failure.txt 2>&1 || true
+    adb shell dumpsys input_method > reports/emulator/ime-dumpsys-on-failure.txt 2>&1 || true
+    adb shell dumpsys window > reports/emulator/window-dumpsys-on-failure.txt 2>&1 || true
+    adb exec-out screencap -p > reports/emulator/ime-screen-on-failure.png 2>/dev/null || true
+  fi
+}
+trap collect_failure_diagnostics EXIT
+
 gradle -p android --no-daemon --max-workers=2 assembleDebug assembleDebugAndroidTest
 
 # ONNX smoke verifies only numeric inference. It must not depend on the
