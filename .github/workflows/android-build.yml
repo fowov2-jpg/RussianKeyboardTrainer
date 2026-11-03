@@ -34,8 +34,10 @@ jobs:
           gradle-version: '8.9'
       - name: Install Android SDK 35
         run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
-      - name: Unit tests, Android lint and APK
-        run: gradle -p android --no-daemon --max-workers=2 testDebugUnitTest lintDebug assembleDebug
+      # Compile Android instrumentation sources without starting an emulator.
+      # This detects Kotlin errors in androidTest before slow AVD workflows run.
+      - name: Unit tests, Android lint, APK and instrumentation compile
+        run: gradle -p android --no-daemon --max-workers=2 testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
       - name: Upload unit and lint reports
         if: always()
         uses: actions/upload-artifact@v4

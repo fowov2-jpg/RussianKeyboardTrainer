@@ -6,7 +6,7 @@
 | Workflow | На чём | Что реально проверяет |
 | --- | --- | --- |
 | `validate` | Ubuntu Python 3.11 | unit tests, duplicate-safe split, 1-epoch listwise demo train, KEEP calibration, экспорт FP32/INT8 ONNX, ONNX Runtime на CPU, форму выходов и численную близость |
-| `android-build` | Ubuntu + SDK 35 | Kotlin JVM unit tests, Android lint, сборка debug APK |
+| `android-build` | Ubuntu + SDK 35 | Kotlin JVM unit tests, Android lint, сборка debug APK, а также компиляция Android instrumentation APK без запуска эмулятора — для раннего обнаружения ошибок в `androidTest` |
 | `android-emulator` | Android emulator API 35 / 3072 MB | Instrumentation: manifest/IME permission/no INTERNET, активность с полем ввода, вызов корректора на Android runtime, регистрация IME, реальный набор с автозаменой после пробела и Undo по Backspace |
 | `android-onnx-smoke` | Android emulator API 35 / 3072 MB | Временная упаковка синтетической INT8-модели, численное сравнение Python и Android, Kotlin-токенизация, P50/P95/max и процессная PSS; строгая проверка, что instrumentation не пропущен |
 
