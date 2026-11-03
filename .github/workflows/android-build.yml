@@ -49,6 +49,29 @@ jobs:
             android/app/build/reports/lint-results-debug.*
           if-no-files-found: ignore
           retention-days: 7
+      - name: Audit packaged APK permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          aapt="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          shopt -s nullglob
+          apks=(android/app/build/outputs/apk/debug/*.apk)
+          if (( ${#apks[@]} == 0 )); then
+            echo "::error::No APK found to audit"
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            echo "Auditing packaged permissions: $apk"
+            # This reads the final merged, packaged manifest, not the source XML.
+            permissions="$("$aapt" dump permissions "$apk")"
+            printf '%s\n' "$permissions"
+            if grep -Eq "uses-permission(-sdk-23)?:|uses-permission(-sdk-23)? name=" <<< "$permissions"; then
+              echo "::error::Unexpected uses-permission in $apk (fail closed)"
+              exit 1
+            fi
+            # The IME service's BIND_INPUT_METHOD is a service-level protection,
+            # not an app-requested permission, so it must not appear above.
+          done
       - name: Report per-ABI APK sizes
         run: |
           echo '### Debug APK sizes by CPU architecture' >> "$GITHUB_STEP_SUMMARY"
