@@ -17,6 +17,10 @@ class RussianCorrectionEngineTest {
         assertEquals("Сегодня ", engine.onSpace("Севодня")?.replacementWithSpace)
     }
 
+    @Test fun preservesAllCaps() {
+        assertEquals("СЕГОДНЯ ", engine.onSpace("СЕВОДНЯ")?.replacementWithSpace)
+    }
+
     @Test fun supportsSpacedReplacement() {
         assertEquals("потому что ", engine.onSpace("потомучто")?.replacementWithSpace)
     }

@@ -57,6 +57,13 @@ class KeyboardTypingTest {
             scenario.onActivity { activity ->
                 assertEquals("сегодня ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
             }
+            val backspace = device.wait(Until.findObject(By.text("⌫").pkg(app.packageName)), 8_000)
+            assertNotNull("Backspace key missing", backspace)
+            backspace.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("севодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
         }
     }
 }

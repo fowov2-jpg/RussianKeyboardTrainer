@@ -42,9 +42,12 @@ class RussianCorrectionEngine {
             val normalized = typed.lowercase(Locale.ROOT)
             val corrected = safeTypos[normalized]
             if (corrected != null) {
-                val restored = if (typed.first().isUpperCase()) {
-                    corrected.replaceFirstChar { it.uppercase(Locale.ROOT) }
-                } else corrected
+                val restored = when {
+                    typed.all { it.isUpperCase() } -> corrected.uppercase(Locale.forLanguageTag("ru"))
+                    typed.first().isUpperCase() ->
+                        corrected.replaceFirstChar { it.uppercase(Locale.forLanguageTag("ru")) }
+                    else -> corrected
+                }
                 return Edit(typed, "$restored ", Reason.TYPO)
             }
         }

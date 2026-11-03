@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.inputmethodservice.InputMethodService
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputConnection
 import android.widget.Button
 import android.widget.LinearLayout
 import java.util.Locale
@@ -14,6 +15,7 @@ import java.util.Locale
  */
 class RussianKeyboardImeService : InputMethodService() {
     private val engine = RussianCorrectionEngine()
+    private val undo = CorrectionUndoState()
     private var shifted = false
     private val letterButtons = mutableListOf<Pair<Button, String>>()
 
@@ -79,10 +81,14 @@ class RussianKeyboardImeService : InputMethodService() {
                     button.text = if (shifted) letter.uppercase(Locale.forLanguageTag("ru")) else letter
                 }
             }
-            "⌫" -> connection.deleteSurroundingText(1, 0)
+            "⌫" -> if (!undoLastCorrection(connection)) connection.deleteSurroundingText(1, 0)
             "Пробел" -> handleSpace()
-            "↵" -> connection.commitText("\n", 1)
+            "↵" -> {
+                undo.clear()
+                connection.commitText("\n", 1)
+            }
             else -> {
+                undo.clear()
                 val value = if (shifted) key.uppercase(Locale.forLanguageTag("ru")) else key
                 connection.commitText(value, 1)
                 if (shifted) {
@@ -94,6 +100,7 @@ class RussianKeyboardImeService : InputMethodService() {
     }
 
     private fun handleSpace() {
+        undo.clear()
         val connection = currentInputConnection ?: return
         // Do not read password or other sensitive input at all, even locally.
         val info = currentInputEditorInfo
@@ -115,15 +122,48 @@ class RussianKeyboardImeService : InputMethodService() {
 
         connection.beginBatchEdit()
         try {
-            connection.deleteSurroundingText(edit.expectedSuffix.length, 0)
-            connection.commitText(edit.replacementWithSpace, 1)
+            val deleted = connection.deleteSurroundingText(edit.expectedSuffix.length, 0)
+            if (deleted && connection.commitText(edit.replacementWithSpace, 1)) {
+                undo.record(edit)
+            }
         } finally {
             connection.endBatchEdit()
         }
     }
 
+    private fun undoLastCorrection(connection: InputConnection): Boolean {
+        val count = undo.suffixLength()
+        if (count == 0) return false
+        val info = currentInputEditorInfo
+        if (info == null || !TextFieldPolicy.canAutocorrect(info.inputType, info.imeOptions)) {
+            undo.clear()
+            return false
+        }
+        if (connection.getSelectedText(0)?.isNotEmpty() == true) {
+            undo.clear()
+            return false
+        }
+        // Revalidate the suffix; never blindly undo an old correction.
+        val current = connection.getTextBeforeCursor(count, 0)?.toString()
+        val previous = undo.takeIfMatching(current) ?: return false
+        connection.beginBatchEdit()
+        try {
+            if (!connection.deleteSurroundingText(count, 0)) return false
+            connection.commitText(previous, 1)
+        } finally {
+            connection.endBatchEdit()
+        }
+        return true
+    }
+
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+        undo.clear()
         shifted = false
+    }
+
+    override fun onFinishInput() {
+        undo.clear()
+        super.onFinishInput()
     }
 }
