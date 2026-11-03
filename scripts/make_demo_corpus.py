@@ -7,4 +7,4 @@ lines = [
 ]
 destination = Path("data/examples/demo_clean.txt")
 destination.parent.mkdir(parents=True, exist_ok=True)
-destination.write_text("\n".join(lines)*100+"\n", encoding="utf-8")
+destination.write_text(("\n".join(lines) + "\n") * 100, encoding="utf-8")
