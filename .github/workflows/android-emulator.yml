@@ -31,29 +31,14 @@ jobs:
       - name: Emulator API 30, 3 GB RAM — instrumentation and IME
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 35
           target: google_apis
           arch: x86_64
           cores: 2
           ram-size: 3072M
           heap-size: 256M
           emulator-boot-timeout: 600
-          script: |
-            gradle -p android --no-daemon --max-workers=2 assembleDebug assembleDebugAndroidTest
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-            adb shell ime enable dev.russiankeyboard.prototype/.RussianKeyboardImeService
-            adb shell ime set dev.russiankeyboard.prototype/.RussianKeyboardImeService
-            gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest
-            mkdir -p reports/emulator
-            # Gradle can remove the test app after instrumentation; reinstall
-            # before checking package registration and collecting memory info.
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-            adb shell ime enable dev.russiankeyboard.prototype/.RussianKeyboardImeService
-            adb shell ime list -a -s | tee reports/emulator/registered-ime.txt
-            grep -F "dev.russiankeyboard.prototype" reports/emulator/registered-ime.txt
-            adb shell am start -n dev.russiankeyboard.prototype/.MainActivity
-            adb shell dumpsys meminfo dev.russiankeyboard.prototype > reports/emulator/launcher-meminfo.txt
-            adb shell cat /proc/meminfo | head -n 6 > reports/emulator/system-meminfo.txt
+          script: bash scripts/ci_android_emulator.sh
       - name: Emulator reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -68,5 +53,5 @@ jobs:
       - name: Result summary
         if: success()
         run: |
-          echo '### Android emulator (3GB RAM, API 30)' >> "$GITHUB_STEP_SUMMARY"
+          echo '### Android emulator (3GB RAM, API 35)' >> "$GITHUB_STEP_SUMMARY"
           echo 'Passed instrumentation and IME registration checks. This does **not** certify real phone RAM, thermals or battery.' >> "$GITHUB_STEP_SUMMARY"

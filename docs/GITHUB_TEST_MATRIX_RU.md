@@ -7,7 +7,7 @@
 | --- | --- | --- |
 | `validate` | Ubuntu Python 3.11 | unit tests, duplicate-safe split, 1-epoch listwise demo train, KEEP calibration, экспорт FP32/INT8 ONNX, ONNX Runtime на CPU, форму выходов и численную близость |
 | `android-build` | Ubuntu + SDK 35 | Kotlin JVM unit tests, Android lint, сборка debug APK |
-| `android-emulator` | Android emulator API 30 / 3072 MB | Instrumentation: manifest/IME permission/no INTERNET, активность с полем ввода, вызов корректора на Android runtime, регистрация IME в системе и нажатия по реальной раскладке с автозаменой после пробела |
+| `android-emulator` | Android emulator API 35 / 3072 MB | Instrumentation: manifest/IME permission/no INTERNET, активность с полем ввода, вызов корректора на Android runtime, регистрация IME в системе и нажатия по реальной раскладке с автозаменой после пробела |
 
 ## Просмотр результата
 

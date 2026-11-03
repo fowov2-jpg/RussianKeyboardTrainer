@@ -12,6 +12,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -27,15 +28,11 @@ class KeyboardTypingTest {
         // Select the actual IME here as well, using Android's shell automation.
         val imeId = "${app.packageName}/.RussianKeyboardImeService"
         val available = device.executeShellCommand("ime list -a -s")
-        assert(available.contains(app.packageName)) {
-            "Russian IME is missing from Android: $available"
-        }
+        assertTrue("Russian IME is missing from Android: $available", available.contains(app.packageName))
         device.executeShellCommand("settings put secure show_ime_with_hard_keyboard 1")
         device.executeShellCommand("ime enable $imeId")
         val selection = device.executeShellCommand("ime set $imeId")
-        assert(!selection.contains("Unknown input method", ignoreCase = true)) {
-            "Could not select Russian IME: $selection"
-        }
+        assertTrue("Could not select Russian IME: $selection", !selection.contains("Unknown input method", ignoreCase = true))
 
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
