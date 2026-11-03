@@ -1,0 +1,36 @@
+# GitHub CI: матрица испытаний русского IME
+
+Каждый результат проверяется по конкретному commit SHA; нельзя выдавать успешную
+проверку предыдущего коммита за проверку текущей версии.
+
+| Workflow | На чём | Что реально проверяет |
+| --- | --- | --- |
+| `validate` | Ubuntu Python 3.11 | unit tests, duplicate-safe split, 1-epoch listwise demo train, KEEP calibration, экспорт FP32/INT8 ONNX, ONNX Runtime на CPU, форму выходов и численную близость |
+| `android-build` | Ubuntu + SDK 35 | Kotlin JVM unit tests, Android lint, сборка debug APK |
+| `android-emulator` | Android emulator API 30 / 3072 MB | Instrumentation: manifest/IME permission/no INTERNET, активность с полем ввода, вызов корректора на Android runtime, регистрация IME в системе |
+
+## Просмотр результата
+
+GitHub → Actions → выберите workflow и последний запуск **для текущего commit SHA**.
+Во вкладке Artifacts доступны APK, Python-модельные метрики и Android test reports.
+Android emulator workflow запускается на Pull Request и вручную (`workflow_dispatch`).
+Если emulator runner недоступен, workflow должен показывать failure — не считать
+устройство протестированным.
+
+## Что НЕ покрыто
+
+- Ввод реальными касаниями по кнопкам IME, полная интеграция InputConnection и Undo.
+- Точность русских исправлений на независимом корпусе, метрики ложных исправлений.
+- ONNX Runtime внутри Android APK: модели пока НЕ включены.
+- Физические смартфоны с 3–4 ГБ: батарея, нагрев, P50/P95 отклика, реальная PSS IME.
+- Реконструкция адресата, русский контекстный род и streaming punctuation.
+- Эмуляторный `dumpsys meminfo` относится к тестовому запуску Activity, а не замеру
+  нагрузки при реальном наборе текста. Размер RAM AVD не гарантирует поведение
+  бюджетного чипа с такой же памятью.
+
+## Политика безопасности CI
+
+Не сохранять личные сообщения/клавиатурные логи в GitHub artifacts. Для тестов
+используются исключительно синтетические строки. Секреты не передаются в fork PR.
+Для автоматических исправлений в чувствительных полях запрет на чтение контекста
+проверяется статической логикой TextFieldPolicy и unit-тестами.

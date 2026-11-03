@@ -5,7 +5,7 @@
 
 ## Сборка
 
-JDK 17, Android SDK 35, Gradle 8.9.
+JDK 17, Android SDK 35, Gradle 8.9.\n\nGitHub проверяет через три workflow: `validate` (в том числе FP32/INT8 ONNX), `android-build` (unit/lint/APK) и `android-emulator` (API 30, 3 ГБ RAM). См. `docs/GITHUB_TEST_MATRIX_RU.md`.\n\nВ приложение не встроен ONNX inference; тест экспортированной модели выполняется только на сервере CI.
 
 ```sh
 gradle -p android --no-daemon testDebugUnitTest assembleDebug

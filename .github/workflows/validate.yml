@@ -29,3 +29,24 @@ jobs:
           rsk-train --config /tmp/smoke.json --out artifacts/ci-smoke
       - name: Verify calibration artifact
         run: test -s artifacts/ci-smoke/best.pt && test -s artifacts/ci-smoke/calibration.json
+      - name: Export ONNX FP32 and INT8
+        run: rsk-export --checkpoint artifacts/ci-smoke/best.pt --out artifacts/ci-smoke/ranker.onnx
+      - name: Test ONNX Runtime parity and output shapes
+        run: python scripts/ci_check_onnx.py --checkpoint artifacts/ci-smoke/best.pt --model artifacts/ci-smoke/ranker.onnx --quantized artifacts/ci-smoke/ranker_int8.onnx --report artifacts/ci-smoke/onnx_ci_report.json
+      - name: CI model report
+        if: always()
+        run: |
+          if test -f artifacts/ci-smoke/onnx_ci_report.json; then
+            echo '### ONNX Runtime / CPU smoke' >> "$GITHUB_STEP_SUMMARY"
+            cat artifacts/ci-smoke/onnx_ci_report.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trainer-ci-smoke-reports
+          path: |
+            artifacts/ci-smoke/best_metrics.json
+            artifacts/ci-smoke/calibration.json
+            artifacts/ci-smoke/onnx_ci_report.json
+          if-no-files-found: ignore
+          retention-days: 7

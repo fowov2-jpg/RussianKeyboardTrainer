@@ -2,7 +2,6 @@ package dev.russiankeyboard.prototype
 
 import android.graphics.Color
 import android.inputmethodservice.InputMethodService
-import android.text.InputType
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -97,7 +96,13 @@ class RussianKeyboardImeService : InputMethodService() {
     private fun handleSpace() {
         val connection = currentInputConnection ?: return
         // Do not read password or other sensitive input at all, even locally.
-        if (isSensitiveField()) {
+        val info = currentInputEditorInfo
+        if (info == null || !TextFieldPolicy.canAutocorrect(info.inputType, info.imeOptions)) {
+            connection.commitText(" ", 1)
+            return
+        }
+        if (connection.getSelectedText(0)?.isNotEmpty() == true) {
+            // A selection must not be silently rewritten as a whole suffix.
             connection.commitText(" ", 1)
             return
         }
@@ -115,19 +120,6 @@ class RussianKeyboardImeService : InputMethodService() {
         } finally {
             connection.endBatchEdit()
         }
-    }
-
-    private fun isSensitiveField(): Boolean {
-        val info = currentInputEditorInfo ?: return true
-        val inputType = info.inputType
-        if ((inputType and InputType.TYPE_MASK_CLASS) != InputType.TYPE_CLASS_TEXT) return true
-        val variation = inputType and InputType.TYPE_MASK_VARIATION
-        if (variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-            variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
-            variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) return true
-        if ((inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0) return true
-        if ((info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0) return true
-        return false
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
