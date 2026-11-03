@@ -23,12 +23,28 @@ class KeyboardTypingTest {
         val device = UiDevice.getInstance(instrumentation)
         val app = ApplicationProvider.getApplicationContext<Context>()
         val inputMethod = app.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        // Gradle may reinstall the APK after the workflow's IME selection.
+        // Select the actual IME here as well, using Android's shell automation.
+        val imeId = "${app.packageName}/.RussianKeyboardImeService"
+        val available = device.executeShellCommand("ime list -a -s")
+        assert(available.contains(app.packageName)) {
+            "Russian IME is missing from Android: $available"
+        }
+        device.executeShellCommand("settings put secure show_ime_with_hard_keyboard 1")
+        device.executeShellCommand("ime enable $imeId")
+        val selection = device.executeShellCommand("ime set $imeId")
+        assert(!selection.contains("Unknown input method", ignoreCase = true)) {
+            "Could not select Russian IME: $selection"
+        }
 
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
                 val field = activity.findViewById<EditText>(R.id.demo_editor)
                 field.setText("")
                 field.requestFocus()
+                activity.window.setSoftInputMode(
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+                )
                 inputMethod.showSoftInput(field, InputMethodManager.SHOW_IMPLICIT)
             }
             assertNotNull(
