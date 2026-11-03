@@ -45,7 +45,11 @@ jobs:
             adb shell ime set dev.russiankeyboard.prototype/.RussianKeyboardImeService
             gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest
             mkdir -p reports/emulator
-            adb shell ime list -s | tee reports/emulator/registered-ime.txt
+            # Gradle can remove the test app after instrumentation; reinstall
+            # before checking package registration and collecting memory info.
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell ime enable dev.russiankeyboard.prototype/.RussianKeyboardImeService
+            adb shell ime list -a -s | tee reports/emulator/registered-ime.txt
             grep -F "dev.russiankeyboard.prototype" reports/emulator/registered-ime.txt
             adb shell am start -n dev.russiankeyboard.prototype/.MainActivity
             adb shell dumpsys meminfo dev.russiankeyboard.prototype > reports/emulator/launcher-meminfo.txt
