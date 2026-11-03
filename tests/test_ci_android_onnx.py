@@ -1,8 +1,14 @@
 import xml.etree.ElementTree as ET
+from pathlib import Path
+import runpy
 
 import pytest
 
-from scripts.ci_assert_android_onnx import assert_android_onnx_pass
+# Pytest's configured pythonpath includes src/, but not the scripts/ directory.
+# Load this repository-local CLI file explicitly without altering sys.path.
+assert_android_onnx_pass = runpy.run_path(
+    str(Path(__file__).resolve().parents[1] / "scripts" / "ci_assert_android_onnx.py")
+)["assert_android_onnx_pass"]
 
 
 def report(tmp_path, status=None, cls="dev.russiankeyboard.prototype.OnDeviceRankerTest", name="quantizedOnnxScoresMatchPythonOnTheEmulator"):
