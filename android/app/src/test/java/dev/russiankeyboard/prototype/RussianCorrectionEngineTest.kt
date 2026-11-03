@@ -43,6 +43,31 @@ class RussianCorrectionEngineTest {
         assertNull(engine.onSpace(""))
     }
 
+    @Test fun avoidsFalseCorrectionsInsideLinksHandlesAndIdentifiers() {
+        for (fragment in listOf(
+            "@превет", "#превет", "site.превет",
+            "https://example.com/превет", "ref_превет",
+            "2превет", "abcпревет", "слово-превет",
+            "/превет", "префикс:превет"
+        )) {
+            assertNull("Must not rewrite a suffix of $fragment", engine.onSpace(fragment))
+        }
+    }
+
+    @Test fun allowsObviousTyposAfterSpacesAndOpeningQuotes() {
+        assertEquals("привет ", engine.onSpace("Я превет")?.replacementWithSpace)
+        assertEquals("привет ", engine.onSpace("(превет")?.replacementWithSpace)
+        assertEquals("ПРИВЕТ ", engine.onSpace("«ПРЕВЕТ")?.replacementWithSpace)
+    }
+
+    @Test fun punctuationDoesNotRewriteHandlesOrIdentifierFragments() {
+        for (fragment in listOf("@думаю что", "#думаю что", "id_думаю что",
+            "путь/думаю что", "x.думаю что", "передумаю что")) {
+            assertNull("Must not insert a comma in $fragment", engine.onSpace(fragment))
+        }
+        assertEquals("думаю, что ", engine.onSpace("(думаю что")?.replacementWithSpace)
+    }
+
     @Test fun neverChangesSensitiveField() {
         assertNull(engine.onSpace("Я севодня", isSensitiveField = true))
         assertNull(engine.onSpace("Я думаю что", isSensitiveField = true))

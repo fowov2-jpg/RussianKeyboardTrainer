@@ -24,6 +24,19 @@ class RussianCorrectionEngine {
         "здравстуйте" to "здравствуйте"
     )
     private val wordAtEnd = Regex("[А-Яа-яЁё]+$")
+
+    /**
+     * Only change complete human-language words. Suffixes after @, #, '.', '/',
+     * digits, underscores, or hyphens may belong to handles, URLs, paths,
+     * identifiers or compounds: fail closed rather than alter that content.
+     */
+    private fun hasSafeWordStart(text: String, start: Int): Boolean {
+        if (start == 0) return true
+        val previous = text[start - 1]
+        return previous.isWhitespace() ||
+            previous == '(' || previous == '[' || previous == '{' ||
+            previous == '«' || previous == '"' || previous == '\''
+    }
     private val commaBeforeThat = Regex(
         "(думаю|знаю|понимаю|сказал|сказала) что$",
         RegexOption.IGNORE_CASE
@@ -41,7 +54,7 @@ class RussianCorrectionEngine {
             val typed = wordMatch.value
             val normalized = typed.lowercase(Locale.ROOT)
             val corrected = safeTypos[normalized]
-            if (corrected != null) {
+            if (corrected != null && hasSafeWordStart(textBeforeCursor, wordMatch.range.first)) {
                 val restored = when {
                     typed.all { it.isUpperCase() } -> corrected.uppercase(Locale.forLanguageTag("ru"))
                     typed.first().isUpperCase() ->
@@ -54,7 +67,7 @@ class RussianCorrectionEngine {
 
         // Conservative demonstration rule, NOT an AI punctuation model.
         val match = commaBeforeThat.find(textBeforeCursor) ?: return null
-        if (match.range.first > 0 && textBeforeCursor[match.range.first - 1].isLetter()) return null
+        if (!hasSafeWordStart(textBeforeCursor, match.range.first)) return null
         val original = match.value
         val insertionIndex = original.lastIndexOf(' ')
         val updated = original.substring(0, insertionIndex) + ", " + original.substring(insertionIndex + 1)
