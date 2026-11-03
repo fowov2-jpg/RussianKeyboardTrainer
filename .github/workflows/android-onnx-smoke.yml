@@ -1,0 +1,81 @@
+name: android-onnx-smoke
+on:
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'src/rsk_trainer/**'
+      - 'scripts/ci_prepare_android_bundle.py'
+      - '.github/workflows/android-onnx-smoke.yml'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inference-on-emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install trainer
+        run: pip install -e .
+      - name: Train intentionally tiny synthetic test checkpoint
+        run: |
+          python scripts/make_demo_corpus.py
+          rsk-build --clean data/examples/demo_clean.txt --out data/generated --synthetic-groups 40 --keep-groups 40
+          python - <<'PY'
+          import json
+          cfg = json.load(open("configs/ranker_small.json"))
+          cfg.update({"epochs": 1, "batch_size": 32, "d_model": 64,
+                      "num_layers": 1, "dim_feedforward": 128,
+                      "num_workers": 0, "amp": False, "patience": 1})
+          json.dump(cfg, open("/tmp/smoke_android.json", "w"))
+          PY
+          rsk-train --config /tmp/smoke_android.json --out artifacts/android-smoke
+          rsk-export --checkpoint artifacts/android-smoke/best.pt --out artifacts/android-smoke/ranker.onnx
+          python scripts/ci_prepare_android_bundle.py --artifact-dir artifacts/android-smoke --out-dir android/app/src/main/assets
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Install Android SDK 35
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      - name: KVM permissions
+        run: |
+          if test -e /dev/kvm; then sudo chmod 666 /dev/kvm; fi
+      - name: Run actual ONNX Runtime inside Android (3 GB emulator)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          cores: 2
+          ram-size: 3072M
+          heap-size: 256M
+          emulator-boot-timeout: 600
+          script: bash scripts/ci_android_emulator.sh
+      - name: Publish test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-onnx-smoke-reports
+          path: |
+            android/app/build/reports/androidTests/
+            android/app/build/outputs/androidTest-results/
+            reports/emulator/
+            artifacts/android-smoke/ranker_metadata.json
+            artifacts/android-smoke/best_metrics.json
+          if-no-files-found: ignore
+          retention-days: 7

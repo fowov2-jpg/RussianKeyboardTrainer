@@ -9,7 +9,7 @@ JDK 17, Android SDK 35, Gradle 8.9.
 
 GitHub проверяет через три workflow: `validate` (в том числе FP32/INT8 ONNX), `android-build` (unit/lint/APK) и `android-emulator` (API 35, 3 ГБ RAM). См. `docs/GITHUB_TEST_MATRIX_RU.md`.
 
-В приложение не встроен ONNX inference; тест экспортированной модели выполняется только на сервере CI.
+В проект добавлен экспериментальный Android ONNX Runtime через `OnDeviceRanker`. В обычный APK модель не включается и не вызывается из IME. Отдельный GitHub workflow `android-onnx-smoke` проверяет пакетирование синтетической ONNX-модели и инференс на эмуляторе. См. `docs/ONNX_ANDROID_INTEGRATION_RU.md`.
 
 ```sh
 gradle -p android --no-daemon testDebugUnitTest assembleDebug
