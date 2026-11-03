@@ -13,6 +13,9 @@ collect_failure_diagnostics() {
     adb shell settings get secure default_input_method > reports/emulator/selected-ime-on-failure.txt 2>&1 || true
     adb shell dumpsys input_method > reports/emulator/ime-dumpsys-on-failure.txt 2>&1 || true
     adb shell dumpsys window > reports/emulator/window-dumpsys-on-failure.txt 2>&1 || true
+    # Only system IME lifecycle tags; never log the editor's text.
+    adb logcat -d -v brief -s 'ImeTracker:*' 'InputMethodManager:*' 'InputMethodManagerService:*' 'ActivityTaskManager:*' '*:S' \
+      > reports/emulator/ime-lifecycle-on-failure.txt 2>&1 || true
     adb exec-out screencap -p > reports/emulator/ime-screen-on-failure.png 2>/dev/null || true
   fi
 }
