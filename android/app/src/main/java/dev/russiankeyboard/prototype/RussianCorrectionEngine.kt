@@ -24,6 +24,18 @@ class RussianCorrectionEngine {
         "здравстуйте" to "здравствуйте"
     )
     private val wordAtEnd = Regex("[А-Яа-яЁё]+$")
+    private val russianLocale = Locale.forLanguageTag("ru")
+
+    /**
+     * Mixed-case text may be an acronym, nickname or deliberate styling.
+     * Accept only lowercase, Titlecase, and ALL CAPS to avoid changing it.
+     */
+    private fun hasConventionalCasing(word: String): Boolean {
+        val lower = word.lowercase(russianLocale)
+        val upper = word.uppercase(russianLocale)
+        val title = lower.replaceFirstChar { it.uppercase(russianLocale) }
+        return word == lower || word == upper || word == title
+    }
 
     /**
      * Only change complete human-language words. Suffixes after @, #, '.', '/',
@@ -54,7 +66,10 @@ class RussianCorrectionEngine {
             val typed = wordMatch.value
             val normalized = typed.lowercase(Locale.ROOT)
             val corrected = safeTypos[normalized]
-            if (corrected != null && hasSafeWordStart(textBeforeCursor, wordMatch.range.first)) {
+            if (corrected != null &&
+                hasSafeWordStart(textBeforeCursor, wordMatch.range.first) &&
+                hasConventionalCasing(typed)
+            ) {
                 val restored = when {
                     typed.all { it.isUpperCase() } -> corrected.uppercase(Locale.forLanguageTag("ru"))
                     typed.first().isUpperCase() ->
@@ -69,6 +84,7 @@ class RussianCorrectionEngine {
         val match = commaBeforeThat.find(textBeforeCursor) ?: return null
         if (!hasSafeWordStart(textBeforeCursor, match.range.first)) return null
         val original = match.value
+        if (!original.split(' ').all(::hasConventionalCasing)) return null
         val insertionIndex = original.lastIndexOf(' ')
         val updated = original.substring(0, insertionIndex) + ", " + original.substring(insertionIndex + 1)
         return Edit(original, "$updated ", Reason.COMMA)

@@ -68,6 +68,20 @@ class RussianCorrectionEngineTest {
         assertEquals("думаю, что ", engine.onSpace("(думаю что")?.replacementWithSpace)
     }
 
+    @Test fun preservesDeliberateMixedCaseWords() {
+        for (value in listOf("ПрЕвЕт", "пРЕВЕТ", "СеВодня", "иЗвЕнИтЕ")) {
+            assertNull("Do not rewrite custom casing: $value", engine.onSpace(value))
+        }
+    }
+
+    @Test fun preservesDeliberateMixedCaseInCommaPatterns() {
+        for (value in listOf("ДуМаю что", "дуМАЮ что", "Думаю чТО", "зНаЮ что")) {
+            assertNull("Do not rewrite custom casing: $value", engine.onSpace(value))
+        }
+        assertEquals("Думаю, что ", engine.onSpace("Думаю что")?.replacementWithSpace)
+        assertEquals("ДУМАЮ, ЧТО ", engine.onSpace("ДУМАЮ ЧТО")?.replacementWithSpace)
+    }
+
     @Test fun neverChangesSensitiveField() {
         assertNull(engine.onSpace("Я севодня", isSensitiveField = true))
         assertNull(engine.onSpace("Я думаю что", isSensitiveField = true))
