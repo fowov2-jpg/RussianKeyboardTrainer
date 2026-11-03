@@ -53,19 +53,19 @@ class OnDeviceRankerTest {
         val pssWithSessionKb = pssKb()
         val samples = ArrayList<Double>(40)
         var pssAfterCallsKb = 0
-        model!!.use {
+        model!!.use { ranker ->
             val context = json.getString("context")
             val typed = json.getString("typed")
-            val scores = it.score(context, typed, candidates)
+            val scores = ranker.score(context, typed, candidates)
             assertEquals(candidates.size, scores.size)
             for (i in scores.indices) {
                 assertTrue("Score mismatch at candidate $i: ${scores[i]} vs ${reference.getDouble(i)}",
                     abs(scores[i] - reference.getDouble(i)) < 0.08)
             }
-            repeat(5) { _ -> it.score(context, typed, candidates) } // warm up
+            repeat(5) { _ -> ranker.score(context, typed, candidates) } // warm up
             repeat(40) {
                 val started = SystemClock.elapsedRealtimeNanos()
-                val result = it.score(context, typed, candidates)
+                val result = ranker.score(context, typed, candidates)
                 samples.add((SystemClock.elapsedRealtimeNanos() - started) / 1_000_000.0)
                 assertEquals(candidates.size, result.size)
             }
