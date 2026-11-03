@@ -21,6 +21,24 @@ class OnDeviceRankerTest {
         val choices = json.getJSONArray("candidates")
         val candidates = (0 until choices.length()).map { choices.getString(it) }
         val reference = json.getJSONArray("scores")
+        val vocab = JSONObject(ctx.assets.open("tokenizer.json").bufferedReader()
+            .use { it.readText() }).getJSONArray("itos")
+        val tokens = (0 until vocab.length()).map { vocab.getString(it) }
+        val metadata = JSONObject(ctx.assets.open("ranker_metadata.json")
+            .bufferedReader().use { it.readText() })
+        val tok = RankerCharTokenizer(tokens, metadata.getInt("max_chars"))
+        val expectedIds = json.getJSONArray("ids")
+        val expectedMask = json.getJSONArray("mask")
+        for (i in candidates.indices) {
+            val encoded = tok.encodePair(json.getString("context"), json.getString("typed"), candidates[i])
+            val ids = expectedIds.getJSONArray(i)
+            val mask = expectedMask.getJSONArray(i)
+            assertEquals(ids.length(), encoded.ids.size)
+            for (j in encoded.ids.indices) {
+                assertEquals("token id candidate $i index $j", ids.getLong(j), encoded.ids[j])
+                assertEquals("attention mask candidate $i index $j", mask.getLong(j), encoded.mask[j])
+            }
+        }
         val model = OnDeviceRanker.openIfBundled(ctx)
         assertNotNull("Int8 ONNX artifact must be present in smoke APK", model)
         model!!.use {

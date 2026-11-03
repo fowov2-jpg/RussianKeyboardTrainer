@@ -46,6 +46,8 @@ def main():
     gold = {
         "context": context, "typed": typed, "candidates": candidates,
         "scores": scores.astype(float).tolist(),
+        "ids": [x[0] for x in encoded],
+        "mask": [x[1] for x in encoded],
         "warning": "Synthetic smoke model; never enable automatic text edits"
     }
     (dst / "ranker_reference.json").write_text(

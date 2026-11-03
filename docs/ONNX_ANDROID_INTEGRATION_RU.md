@@ -29,7 +29,10 @@ GitHub Actions → workflow `android-onnx-smoke`. Тест
 `OnDeviceRankerTest.quantizedOnnxScoresMatchPythonOnTheEmulator` сравнивает
 скоринги INT8 CPU Python и Android с допуском 0.08. Если модель не упакована,
 тест пропускается в обычной Android-сборке; отдельный smoke workflow обязательно
-упаковывает assets перед запуском. При ошибке загрузки/инференса CI будет красным.
+упаковывает assets перед запуском. После instrumentation специальный Python
+валидатор проверяет XML-отчёт и **завершает workflow ошибкой, если тест пропущен,
+не найден, провалился либо не выполнился**. Тест сравнивает также входные
+идентификаторы токенизатора и маску внимания с Python, а не только скоринги.
 
 Контрольный путь к APK теста: `android/app/build/outputs/apk/debug/app-x86_64-debug.apk` на эмуляторе; мобильные APK выпускаются отдельно для `arm64-v8a` и `armeabi-v7a`
 внутри workflow. Этот артефакт **не является пользовательским релизом**.
