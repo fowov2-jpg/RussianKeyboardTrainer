@@ -18,6 +18,12 @@ object TextFieldPolicy {
                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
                 InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
                 InputType.TYPE_TEXT_VARIATION_URI,
+                // Names, postal addresses, phonetic input and search filters
+                // should never be rewritten by the tiny typo dictionary.
+                InputType.TYPE_TEXT_VARIATION_PERSON_NAME,
+                InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS,
+                InputType.TYPE_TEXT_VARIATION_PHONETIC,
+                InputType.TYPE_TEXT_VARIATION_FILTER,
             )) return false
         if ((inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0) return false
         if ((imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0) return false

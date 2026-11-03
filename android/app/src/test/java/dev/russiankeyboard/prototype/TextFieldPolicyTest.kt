@@ -10,6 +10,8 @@ class TextFieldPolicyTest {
         assertTrue(TextFieldPolicy.canAutocorrect(InputType.TYPE_CLASS_TEXT, 0))
         assertTrue(TextFieldPolicy.canAutocorrect(
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE, 0))
+        assertTrue(TextFieldPolicy.canAutocorrect(
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_LONG_MESSAGE, 0))
     }
 
     @Test fun sensitiveVariationsAreNotRead() {
@@ -19,7 +21,11 @@ class TextFieldPolicyTest {
             InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
             InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
             InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
-            InputType.TYPE_TEXT_VARIATION_URI
+            InputType.TYPE_TEXT_VARIATION_URI,
+            InputType.TYPE_TEXT_VARIATION_PERSON_NAME,
+            InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS,
+            InputType.TYPE_TEXT_VARIATION_PHONETIC,
+            InputType.TYPE_TEXT_VARIATION_FILTER
         )
         for (variation in privateVariations) {
             assertFalse("variation=$variation", TextFieldPolicy.canAutocorrect(
