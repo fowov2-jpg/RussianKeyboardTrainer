@@ -1,0 +1,2 @@
+9ee458657db0a6e3f39c7b3c3c851605c56e8806466b6584f1b03af8c376629d  RussianKeyboard-1.0.0-rc9-local-ARM64.zip
+490b9d30ac1e25b424a2aea6390e8c22f6b21f0a10072553899b53fdd99dc5cf  RussianKeyboard-1.0.0-rc9-local-ARM32.zip

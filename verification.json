@@ -1,0 +1,62 @@
+{
+  "apks": [
+    {
+      "apk": "app-arm64-v8a-standalone.apk",
+      "sha256": "7c4b2312c81d47457d9ccec34454613f21009b1b2c5cfc847d8ffd8ed0c87ce0",
+      "badging": "package: name='dev.russiankeyboard.prototype' versionCode='10' versionName='1.0.0-rc9-local' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'",
+      "accessibility_service": false,
+      "screen_context_resource": false,
+      "requested_permissions": [],
+      "debuggable": false,
+      "ime_service": true,
+      "signature_and_alignment": "passed",
+      "same_certificate_as_current_debug": true
+    },
+    {
+      "apk": "app-armeabi-v7a-standalone.apk",
+      "sha256": "48aae5e6727c6c545b58c8263f2bce357b74c2f5dac765f03a39ae3579265f18",
+      "badging": "package: name='dev.russiankeyboard.prototype' versionCode='10' versionName='1.0.0-rc9-local' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'",
+      "accessibility_service": false,
+      "screen_context_resource": false,
+      "requested_permissions": [],
+      "debuggable": false,
+      "ime_service": true,
+      "signature_and_alignment": "passed",
+      "same_certificate_as_current_debug": true
+    },
+    {
+      "apk": "app-x86_64-standalone.apk",
+      "sha256": "f938d1bcd3d4e910bd627c117087dd556657e1ce24888794c6fcc822faf26e24",
+      "badging": "package: name='dev.russiankeyboard.prototype' versionCode='10' versionName='1.0.0-rc9-local' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'",
+      "accessibility_service": false,
+      "screen_context_resource": false,
+      "requested_permissions": [],
+      "debuggable": false,
+      "ime_service": true,
+      "signature_and_alignment": "passed",
+      "same_certificate_as_current_debug": true
+    }
+  ],
+  "play_protect_approval": "unknown; device decision not tested",
+  "scope": "Component, resource and signature verification. Does not certify installation or model quality.",
+  "source_commit": "1644ad858bd9d6e95b7bf1db2d0d7a734622b729",
+  "version": "1.0.0-rc9-local",
+  "unit_tests": 25610,
+  "lint_debug_and_standalone": "passed",
+  "packaged_dictionary_checks_debug_and_standalone": "passed",
+  "android_test_compilation": "passed",
+  "physical_phone_installation": "not yet tested",
+  "same_certificate_as_previously_shared_rc8": true,
+  "distributed_apks": [
+    {
+      "name": "RussianKeyboard-1.0.0-rc9-local-ARM64.apk",
+      "bytes": 124775871,
+      "sha256": "7c4b2312c81d47457d9ccec34454613f21009b1b2c5cfc847d8ffd8ed0c87ce0"
+    },
+    {
+      "name": "RussianKeyboard-1.0.0-rc9-local-ARM32.apk",
+      "bytes": 119362475,
+      "sha256": "48aae5e6727c6c545b58c8263f2bce357b74c2f5dac765f03a39ae3579265f18"
+    }
+  ]
+}
