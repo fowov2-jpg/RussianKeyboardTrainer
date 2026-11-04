@@ -10,7 +10,7 @@ from build_russian_typos import blob_hash, decode_dictionary, select_words, NEIG
 
 class RussianTypoGeneratorTest(unittest.TestCase):
     def test_dictionary_utf16_with_ascii_header(self):
-        sample = b"575484\\n" + "\\ufeffсловарь\\nслово\\n".encode("utf-16-le")
+        sample = bytes.fromhex("3537353438340afffe") + ("словарь" + chr(10) + "слово" + chr(10)).encode("utf-16-le")
         self.assertEqual(decode_dictionary(sample).splitlines()[:2], ["575484", "словарь"])
 
     def test_git_blob_id(self):
