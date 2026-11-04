@@ -85,7 +85,6 @@ class KeyboardTypingTest {
                 device.wait(Until.findObject(By.desc(key).pkg(app.packageName)), timeoutMs)
                     ?: device.wait(Until.findObject(By.text(key).pkg(app.packageName)), 1_500)
 
-            assertNotNull("Russian letter ё must be available on the keyboard", findKey("ё"))
             var space: UiObject2? = null
             for (attempt in 0..2) {
                 editor!!.click()
@@ -108,6 +107,7 @@ class KeyboardTypingTest {
                 "IME not visible after editor taps and explicit show requests; selected=$currentIme",
                 space
             )
+            assertNotNull("Russian letter ё must be available on the keyboard", findKey("ё"))
 
             for (key in listOf("с", "е", "в", "о", "д", "н", "я", "Пробел")) {
                 val button = findKey(key, 8_000)
