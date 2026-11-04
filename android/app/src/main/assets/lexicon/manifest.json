@@ -1,0 +1,25 @@
+{
+  "format": "RSKLEX02",
+  "wordforms": 100000,
+  "protected_spellings": 561304,
+  "indexed_typos": 1000000,
+  "automatic_single_edit_candidates": 227138,
+  "ambiguous_single_edits_excluded_from_automatic": 43253,
+  "automatic_frequency_rank_limit": 30000,
+  "bytes": 41058876,
+  "sha256": "aa2cd10281823a88bca6feae5c8c195ba38fc8c3d8958a86b70f84a82acf283f",
+  "corpus_sha256": "7f1dd99c304ba26a731d860364142fb0eb3bcacba8c1fe8b0f087dddba3330ba",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/hingston/russian/b144235f90fc720ef310f304e31acc3825d62a1b/100000-russian-words.txt",
+      "git_blob": "a121c5a297bb174752eb4251984f86a57f49e24e",
+      "license": "CC BY 2.5"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Goudron/ru-spelling-dictionary/0f983e6b1950e240f5512974a5f146ea56f64bed/ru_RU.dic",
+      "git_blob": "1530696fd21917aa246a7ebe3f7098d5aa274364",
+      "license": "MPL 2.0"
+    }
+  ],
+  "scope": "Synthetic candidates; single-edit ambiguity checked against pinned sources and keyboard model only"
+}

@@ -1,0 +1,5 @@
+OpenCorpora Russian dictionary, revision 417150 / corpus 4580142.
+Compiled by pymorphy3-dicts-ru 2.4.417150.4580142. Data: CC BY-SA 3.0.
+https://creativecommons.org/licenses/by-sa/3.0/
+Sources: https://opencorpora.org/ and https://github.com/no-plagiarism/pymorphy3-dicts
+Unchanged words.dawg; Darts reader adapted from DAWG-Python (MIT, license included).

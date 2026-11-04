@@ -15,6 +15,7 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".KeyboardSettingsActivity" android:exported="false" />
         <service
             android:name=".RussianKeyboardImeService"
             android:label="@string/ime_name"

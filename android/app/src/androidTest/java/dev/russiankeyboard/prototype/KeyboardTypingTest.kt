@@ -181,6 +181,77 @@ class KeyboardTypingTest {
                 assertEquals("севодня тест",
                     activity.findViewById<EditText>(R.id.demo_editor).text.toString())
             }
+
+            // A two-error dictionary candidate needs an explicit suggestion tap.
+            val lexiconDeadline = android.os.SystemClock.elapsedRealtime() + 10_000
+            while (LexiconLoader.current == null && android.os.SystemClock.elapsedRealtime() < lexiconDeadline) {
+                Thread.sleep(25)
+            }
+            assertNotNull("Large offline dictionary did not load", LexiconLoader.current)
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("прмыет")
+                field.setSelection(field.length())
+            }
+            findKey("Shift", 8_000)!!.click() // refresh candidates without typing a character
+            device.waitForIdle()
+            val suggestion = device.wait(Until.findObject(By.text("привет").pkg(app.packageName).enabled(true)), 8_000)
+            assertNotNull("Dictionary suggestion is missing", suggestion)
+            assertTrue("Dictionary suggestion is disabled", suggestion!!.isEnabled)
+            assertEquals("привет", suggestion.text)
+            suggestion.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("привет ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+            findKey("Удалить", 8_000)!!.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("прмыет", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+            findKey("Пробел", 8_000)!!.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("прмыет ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("ппривет")
+                field.setSelection(field.length())
+            }
+            findKey("Shift", 8_000)!!.click()
+            device.waitForIdle()
+            val keep = findKey("Оставить как набрано", 8_000)
+            assertNotNull("Keep-original action missing", keep)
+            assertTrue(keep!!.isEnabled)
+            keep.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("ппривет ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("Она работал вчера")
+                field.setSelection(field.length())
+            }
+            device.waitForIdle()
+            findKey("Проверить фразу", 8_000)!!.click()
+            val apply = findKey("Применить исправления фразы", 8_000)
+            assertNotNull("Phrase preview did not appear", apply)
+            val proposed = findKey("Предпросмотр исправлений", 8_000)
+            assertEquals("Она работала вчера", proposed!!.text)
+            apply!!.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("Она работала вчера", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+            findKey("Удалить", 8_000)!!.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("Она работал вчера", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
         }
     }
 }

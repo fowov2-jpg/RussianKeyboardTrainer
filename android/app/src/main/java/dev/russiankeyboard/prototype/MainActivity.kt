@@ -15,6 +15,7 @@ import android.view.WindowManager
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        LexiconLoader.warmUp(this)
         // A weighted editor must shrink above the IME rather than remain
         // occluded by its keys when Android changes the visible window height.
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
@@ -30,7 +31,7 @@ class MainActivity : Activity() {
             setTypeface(null, android.graphics.Typeface.BOLD)
         })
         column.addView(TextView(this).apply {
-            text = "Офлайн · Без передачи текста · Тестовая версия 1.0.0-rc1"
+            text = "Контекстные подсказки · Офлайн · 1.0.0-rc3"
             textSize = 13f
             setPadding(0, (4 * density).toInt(), 0, (8 * density).toInt())
         })
@@ -48,8 +49,8 @@ class MainActivity : Activity() {
             }
         })
         column.addView(TextView(this).apply {
-            text = "Попробуй: превет → привет после пробела. Backspace отменяет " +
-                "исправление. Исправление целых предложений ещё разрабатывается."
+            text = "Пиши как обычно. «Проверить фразу» предложит исправления перед " +
+                "применением. Backspace отменяет замену. Настройки — ⚙ на клавиатуре."
             textSize = 13f
             setPadding(0, (8 * density).toInt(), 0, (4 * density).toInt())
         })

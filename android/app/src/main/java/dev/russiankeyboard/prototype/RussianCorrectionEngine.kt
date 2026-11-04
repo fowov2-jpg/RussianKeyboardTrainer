@@ -3,13 +3,17 @@ package dev.russiankeyboard.prototype
 import java.util.Locale
 
 /** Fast deterministic fallback; no neural inference or personal data collection. */
-class RussianCorrectionEngine {
-    enum class Reason { TYPO, COMMA }
+class RussianCorrectionEngine(
+    private val morphology: () -> MorphologyDictionary? = { null },
+    private val lexicon: () -> RussianLexicon? = { null }
+) {
+    enum class Reason { TYPO, COMMA, COMPLETION, PREDICTION, PHRASE }
     data class Edit(
         val expectedSuffix: String,
         val replacementWithSpace: String,
         val reason: Reason
     )
+    data class Suggestion(val edit: Edit, val automatic: Boolean)
 
     private val safeTypos = mapOf(
         "севодня" to "сегодня",
@@ -54,31 +58,44 @@ class RussianCorrectionEngine {
         RegexOption.IGNORE_CASE
     )
 
-    /**
-     * Runs only on space, not on every keystroke.
-     * Never guesses an addressee's gender or inserts a final period from a pause.
-     */
-    fun onSpace(textBeforeCursor: String, isSensitiveField: Boolean = false): Edit? {
-        if (isSensitiveField) return null
-
+    /** Same boundaries and casing for both automatic and user-approved edits. */
+    fun suggestions(textBeforeCursor: String, isSensitiveField: Boolean = false): List<Suggestion> {
+        if (isSensitiveField) return emptyList()
         val wordMatch = wordAtEnd.find(textBeforeCursor)
         if (wordMatch != null) {
             val typed = wordMatch.value
             val normalized = typed.lowercase(Locale.ROOT)
-            val corrected = safeTypos[normalized]
-            if (corrected != null &&
-                hasSafeWordStart(textBeforeCursor, wordMatch.range.first) &&
-                hasConventionalCasing(typed)
-            ) {
+            if (morphology()?.contains(normalized) == true) return emptyList()
+            if (!hasSafeWordStart(textBeforeCursor, wordMatch.range.first) ||
+                !hasConventionalCasing(typed)) return emptyList()
+            val curated = safeTypos[normalized]
+            val candidate = lexicon()?.lookup(normalized)
+            val choices = mutableListOf<Pair<String, Boolean>>()
+            if (curated != null) choices.add(curated to true)
+            if (candidate != null && candidate.word != curated) {
+                choices.add(candidate.word to (curated == null && candidate.automatic))
+            }
+            return choices.map { (corrected, automatic) ->
                 val restored = when {
                     typed.all { it.isUpperCase() } -> corrected.uppercase(Locale.forLanguageTag("ru"))
                     typed.first().isUpperCase() ->
                         corrected.replaceFirstChar { it.uppercase(Locale.forLanguageTag("ru")) }
                     else -> corrected
                 }
-                return Edit(typed, "$restored ", Reason.TYPO)
+                Suggestion(Edit(typed, "$restored ", Reason.TYPO), automatic)
             }
         }
+        return emptyList()
+    }
+
+    fun suggest(textBeforeCursor: String, isSensitiveField: Boolean = false): Suggestion? =
+        suggestions(textBeforeCursor, isSensitiveField).firstOrNull()
+
+    /** Runs only on space. Ambiguous/rare/two-edit candidates need a tap. */
+    fun onSpace(textBeforeCursor: String, isSensitiveField: Boolean = false): Edit? {
+        if (isSensitiveField) return null
+        val suggestion = suggest(textBeforeCursor)
+        if (suggestion?.automatic == true) return suggestion.edit
 
         // Conservative demonstration rule, NOT an AI punctuation model.
         val match = commaBeforeThat.find(textBeforeCursor) ?: return null

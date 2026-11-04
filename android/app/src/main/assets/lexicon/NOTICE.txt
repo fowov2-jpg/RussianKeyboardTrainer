@@ -1,0 +1,5 @@
+Russian keyboard lexicon: 100,000 selected wordforms; 1,000,000 synthetic typo candidates.
+University of Leeds Corpus, editing by hingston/russian, CC BY 2.5.
+Russian Hunspell Dictionary, copyright Valery Ledovskoy, MPL 2.0.
+Exact source URLs, revisions and hashes: manifest.json. Original licenses included.
+Synthetic edits, candidate selection and binary compilation: this project.

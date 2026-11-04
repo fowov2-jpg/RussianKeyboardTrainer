@@ -1,0 +1,5 @@
+Tatoeba Russian sentences, CC BY 2.0 FR, https://tatoeba.org/en/downloads
+https://creativecommons.org/licenses/by/2.0/fr/
+Context statistics adapted by this project; contributor attribution in Tatoeba-AUTHORS.txt; sentence IDs retained in heldout fixture.
+Grammar forms derived from UD Russian GSD (Google; McDonald, Nikolaev, Lyashevskaya), CC BY-SA 4.0, and OpenCorpora, CC BY-SA 3.0; adapted grammar table under CC BY-SA 4.0.
+See manifest.json, UD-README.md and OpenCorpora-NOTICE.txt. No private user messages used.

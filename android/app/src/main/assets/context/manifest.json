@@ -1,0 +1,42 @@
+{
+  "format": "context-1",
+  "source": "Tatoeba Russian attributed 150k hash sample",
+  "source_url": "https://downloads.tatoeba.org/exports/per_language/rus/rus_sentences_detailed.tsv.bz2",
+  "license": "CC BY 2.0 FR",
+  "source_sha256": "16e6147510b4f09f97636940aaf674dee68a47910276c9a122e81453527eb329",
+  "split_by": "lexical sentence hash (ignoring punctuation/case/spacing) before n-gram counting; separate digest halves for sampling/split",
+  "sentences": {
+    "train": 127262,
+    "validation": 10529,
+    "test": 12209
+  },
+  "context_entries": 141964,
+  "spelling_words": 125269,
+  "trie_nodes": 375809,
+  "prediction_contexts": 9065,
+  "grammar_source": "UniversalDependencies/UD_Russian-GSD @ 0f34b7362ac3c3facd1d6ff4b876d241bb15793e",
+  "grammar_license": "CC BY-SA 4.0 (UD 4.0 + OpenCorpora 3.0 adaptation)",
+  "grammar_forms": 4413,
+  "source_snapshots": {
+    "rus_sentences_CC0.tsv.bz2": "3b6645bbc18e4e3444ebc9195c4a6c41ff521a8bc4306fec8fcc217ae734db76",
+    "ru_gsd-ud-train.conllu": "0ae33a4bbda12697e2eb0a32af4971bda73af5852c8521744a974a316c02bab5",
+    "LICENSE.txt": "899b1804a12ebc090b96339614eede1b64b686721b650a71430b55b5235f7f79",
+    "README.md": "9de2b999444f417d186a41339d56651f10f3720d957316f35de7d251b7823d6b",
+    "rus_sentences_detailed.tsv.bz2": "16e6147510b4f09f97636940aaf674dee68a47910276c9a122e81453527eb329"
+  },
+  "holdout_sha256": "9b93f72e0204082910ea7615c699fa7dec614094d88b4f47460f14f7cfc0eaf8",
+  "morphology": {
+    "source": "OpenCorpora via pymorphy3-dicts-ru 2.4.417150.4580142",
+    "records": 5140211,
+    "license": "CC BY-SA 3.0",
+    "sha256": "ae4381a9d6e4e636309ac1a242e480a9470a05723f6673d5fcc3fcf293aa8a9e"
+  },
+  "sha256": {
+    "spelling.bin": "688abc54d3450b223a0b826f4bc14a402dbac6ae4fe768e3178aab6fee407dca",
+    "language.bin": "d24468ed0f3047e21a7de7ac4cbe6366a49bdf1388b56712b6e78ad092e1bf5e",
+    "grammar.tsv": "0f29d4b3915996b7769fd0cb34260542aae6470066b217e3aa178996801d6a3d",
+    "predictions.tsv": "839b5297c3130b45522b061a49087200eac625db80700b3c9b57148f55eb7cda",
+    "morphology.bin": "ae4381a9d6e4e636309ac1a242e480a9470a05723f6673d5fcc3fcf293aa8a9e"
+  },
+  "scope": "Backoff n-grams and dictionary morphology, not a neural grammar model; explicit suggestions only"
+}

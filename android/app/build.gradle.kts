@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "dev.russiankeyboard.prototype"
     compileSdk = 35
+    buildToolsVersion = "35.0.0"
 
     // Avoid shipping three CPU architectures inside one large APK.
     splits {
@@ -21,8 +22,8 @@ android {
         applicationId = "dev.russiankeyboard.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.0-rc1"
+        versionCode = 4
+        versionName = "1.0.0-rc3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -32,6 +33,23 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+    }
+    androidResources {
+        // AssetFileDescriptor + mmap require an uncompressed APK entry.
+        noCompress += "bin"
+    }
+    testOptions {
+        unitTests.all {
+            it.systemProperty("rsk.lexicon", file("src/main/assets/lexicon/russian.bin").absolutePath)
+            it.systemProperty("rsk.lexiconReport", layout.buildDirectory.file("reports/lexicon-runtime.json").get().asFile.absolutePath)
+            it.inputs.file(file("src/main/assets/lexicon/russian.bin"))
+                .withPropertyName("russianLexicon")
+            it.systemProperty("rsk.context", file("src/main/assets/context").absolutePath)
+            it.systemProperty("rsk.contextReport", layout.buildDirectory.file("reports/context-runtime.json").get().asFile.absolutePath)
+            it.inputs.dir(file("src/main/assets/context")).withPropertyName("contextAssets")
+            it.outputs.file(layout.buildDirectory.file("reports/lexicon-runtime.json"))
+            it.outputs.file(layout.buildDirectory.file("reports/context-runtime.json"))
+        }
     }
 }
 

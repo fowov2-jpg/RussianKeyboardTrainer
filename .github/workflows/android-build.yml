@@ -5,11 +5,13 @@ on:
     paths:
       - 'android/**'
       - 'scripts/ci_verify_android_corpus.py'
+      - 'scripts/ci_verify_android_lexicon.py'
       - '.github/workflows/android-build.yml'
   pull_request:
     paths:
       - 'android/**'
       - 'scripts/ci_verify_android_corpus.py'
+      - 'scripts/ci_verify_android_lexicon.py'
       - '.github/workflows/android-build.yml'
   workflow_dispatch:
 concurrency:
@@ -40,11 +42,9 @@ jobs:
       # This detects Kotlin errors in androidTest before slow AVD workflows run.
       - name: Unit tests, Android lint, APK and instrumentation compile
         run: gradle -p android --no-daemon --max-workers=2 testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
-      - name: Require 10000+ distinct word/sentence regression tests
+      - name: Verify actual million-entry runtime coverage and packaged dictionaries
         run: |
-          python3 scripts/ci_verify_android_corpus.py \
-            --reports android/app/build/test-results/testDebugUnitTest \
-            --minimum 10000 --summary "$GITHUB_STEP_SUMMARY"
+          python3 scripts/ci_verify_android_lexicon.py --summary "$GITHUB_STEP_SUMMARY"
       - name: Upload unit and lint reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -54,6 +54,10 @@ jobs:
             android/app/build/test-results/testDebugUnitTest/
             android/app/build/reports/tests/testDebugUnitTest/
             android/app/build/reports/lint-results-debug.*
+            android/app/build/reports/lexicon-runtime.json
+            android/app/build/reports/context-runtime.json
+            android/app/src/main/assets/lexicon/manifest.json
+            android/app/src/main/assets/context/manifest.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Audit packaged APK permissions
