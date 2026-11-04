@@ -33,12 +33,14 @@ class PunctuationTokenizer(vocabulary: List<String>) {
         require(maxTokens in 32..256)
         val matches = wordPattern.findAll(text).toList()
         val protected = protectedPattern.findAll(text).map { it.range }.toList()
-        val target = matches.map { pieces(it.value) }
+        // RUPunct restores case from bare lowercase ASR text. Keep the model
+        // view stable while retaining original spelling/case/UTF-16 offsets.
+        val target = matches.map { pieces(it.value.lowercase()) }
         var first = 0
         var size = target.sumOf { it.size }
         while (size > maxTokens - 3 && first < target.size) { size -= target[first].size; first++ }
         val contextBudget = minOf(40, maxTokens - size - 3).coerceAtLeast(0)
-        val history = wordPattern.findAll(context).toList().takeLast(24).flatMap { pieces(it.value) }.takeLast(contextBudget)
+        val history = wordPattern.findAll(context).toList().takeLast(24).flatMap { pieces(it.value.lowercase()) }.takeLast(contextBudget)
         val ids = mutableListOf(2)
         if (history.isNotEmpty()) { ids.addAll(history); ids.add(3) }
         val words = mutableListOf<Word>()

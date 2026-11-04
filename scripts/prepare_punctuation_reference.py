@@ -33,9 +33,9 @@ def main():
         value = value.encode('utf-8'); integer(len(value)); output.extend(value)
     integer(len(CASES))
     for text, history in CASES:
-        pieces = [tokenizer.encode(word, add_special_tokens=False).ids for word in re.findall(r'[^\W_]+', text)]
+        pieces = [tokenizer.encode(word.lower(), add_special_tokens=False).ids for word in re.findall(r'[^\W_]+', text)]
         context = [token for word in re.findall(r'[^\W_]+', history)[-24:]
-                   for token in tokenizer.encode(word, add_special_tokens=False).ids]
+                   for token in tokenizer.encode(word.lower(), add_special_tokens=False).ids]
         budget = max(0, min(40, 192 - sum(map(len, pieces)) - 3))
         context = context[-budget:] if budget else []
         ids = [2] + (context + [3] if context else [])

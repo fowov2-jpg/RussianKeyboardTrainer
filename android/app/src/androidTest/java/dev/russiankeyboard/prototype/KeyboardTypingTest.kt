@@ -279,12 +279,27 @@ class KeyboardTypingTest {
                 assertEquals("севодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
             }
             scenario.onActivity { activity ->
+                activity.findViewById<EditText>(R.id.demo_editor).setText("")
+            }
+            for (key in listOf("п", "р", "и", "в", "т")) findKey(key, 8_000)!!.click()
+            findKey("Цифры и символы", 8_000)!!.click()
+            findKey("_", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("привт_", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+            }
+            findKey("Цифры и символы", 8_000)!!.click()
+            scenario.onActivity { activity ->
                 val field = activity.findViewById<EditText>(R.id.demo_editor)
                 field.setText("привет как дела"); field.setSelection(field.length())
             }
             findKey("Пробел", 8_000)!!.click()
-            assertTrue("Automatic neural punctuation never reached the active editor", device.wait(
-                Until.hasObject(By.res(app.packageName, "demo_editor").text("Привет, как дела? ")), 20_000))
+            val punctuated = device.wait(
+                Until.hasObject(By.res(app.packageName, "demo_editor").text("Привет, как дела? ")), 20_000)
+            if (!punctuated) scenario.onActivity { activity ->
+                assertEquals("Automatic punctuation of synthetic input", "Привет, как дела? ",
+                    activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+            assertTrue("Automatic neural punctuation never reached the active editor", punctuated)
             findKey("у", 8_000)!!.click()
             assertTrue("Continuing a question left a stale provisional question mark", device.wait(
                 Until.hasObject(By.res(app.packageName, "demo_editor").text("Привет, как дела у")), 8_000))

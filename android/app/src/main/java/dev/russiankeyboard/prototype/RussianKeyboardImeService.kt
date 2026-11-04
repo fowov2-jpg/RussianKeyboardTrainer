@@ -344,7 +344,7 @@ class RussianKeyboardImeService : InputMethodService() {
     private fun liveCorrection(connection: InputConnection, key: String) {
         val info = currentInputEditorInfo
         if (info == null || !TextFieldPolicy.canAutocorrect(info.inputType, info.imeOptions)) { liveSpelling.clear(); return }
-        if (english || numeric || !preferences.getBoolean("autocorrect", true) ||
+        if ((english || numeric) && !liveSpelling.active || !preferences.getBoolean("autocorrect", true) ||
             !preferences.getBoolean("automatic_writing", true) || keepAfterUndo ||
             connection.getTextAfterCursor(1, 0)?.isEmpty() != true) { liveSpelling.clear(); return }
         val before = readContext(connection) ?: run { liveSpelling.clear(); return }

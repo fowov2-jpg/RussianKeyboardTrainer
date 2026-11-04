@@ -11,6 +11,7 @@ class LiveSpellingController(
     private data class Pending(val raw: String, val shown: String, val anchor: String)
     private var pending: Pending? = null
     private val word = Regex("[А-Яа-яЁё]+$")
+    val active: Boolean get() = pending != null
     fun clear() { pending = null }
     fun reconcile(text: String) {
         val old = pending ?: return

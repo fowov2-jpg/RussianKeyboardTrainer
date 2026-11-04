@@ -32,6 +32,8 @@ class PunctuationPlannerTest {
             assertArrayEquals(reference.text, reference.ids, encoded.ids)
             assertEquals(reference.text, reference.positions, encoded.words.map { it.firstToken })
         }
+        assertArrayEquals(tokenizer.encode("привет как дела").ids, tokenizer.encode("Привет как дела").ids)
+        assertEquals("ПрЕвЕт", tokenizer.encode("ПрЕвЕт").words.single().text)
     }
     @Test fun actualNeuralPredictionsRestoreUserExampleWithoutTurningStatementsIntoQuestions() {
         val expected = mapOf(
