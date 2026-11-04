@@ -7,7 +7,7 @@ class AutomaticWritingEngine(
     private val punctuate: (String, String, PunctuationPlanner.Mode, Boolean) -> PunctuationPlanner.Result?,
     private val correctSpelling: Boolean = true
 ) {
-    data class Result(val original: String, val replacement: String, val provisionalTerminal: String?)
+    data class Result(val original: String, val replacement: String, val provisionalTerminal: String?, val finalizedReplacement: String? = null)
     fun analyze(text: String, conversation: String, profile: WritingProfile,
                 mode: PunctuationPlanner.Mode, sentenceStart: Boolean = true): Result? {
         if (text.isBlank() || text.length > 640 || text.any { it == '\u0000' }) return null
@@ -35,6 +35,8 @@ class AutomaticWritingEngine(
         val punctuated = punctuate(updated, conversation, mode, sentenceStart || text.contains('\n'))
         val replacement = punctuated?.text ?: updated
         val full = text.substring(0, text.length - paragraph.length) + replacement
-        return if (full == text) null else Result(text, full, punctuated?.provisionalTerminal)
+        val finalized = punctuated?.finalizedText?.let { text.substring(0, text.length - paragraph.length) + it }
+        return if (full == text && (finalized == null || finalized == text)) null
+            else Result(text, full, punctuated?.provisionalTerminal, finalized)
     }
 }

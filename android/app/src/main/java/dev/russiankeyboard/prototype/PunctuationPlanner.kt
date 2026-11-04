@@ -7,7 +7,7 @@ object PunctuationPlanner {
     enum class Mode { STREAMING, FINALIZE }
     data class Prediction(val punctuation: Int, val probability: Double, val margin: Double,
                           val casing: Int, val casingProbability: Double)
-    data class Result(val text: String, val provisionalTerminal: String?)
+    data class Result(val text: String, val provisionalTerminal: String?, val finalizedText: String? = null)
     private val marks = listOf(".", ",", "?", " —", "!", ":", ";", "-", "?!", "…", "")
     private val questionWords = setOf("как", "кто", "что", "где", "куда", "откуда", "когда", "почему", "зачем", "сколько", "какой", "какая", "какие", "чей")
     private val unfinished = setOf("и", "но", "а", "или", "что", "если", "чтобы", "потому", "на", "в", "у", "к", "с", "из", "для", "от", "до", "про", "по", "без", "при")

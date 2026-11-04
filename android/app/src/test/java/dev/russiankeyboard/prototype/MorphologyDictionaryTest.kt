@@ -18,6 +18,7 @@ class MorphologyDictionaryTest {
             reader.forEachLine { line ->
                 val (word, expected) = line.split('\t')
                 assertEquals(word, expected == "1", dictionary.contains(word))
+                if (expected == "1" && word.length > 1) assertTrue(word, dictionary.hasPrefix(word.dropLast(1)))
                 count++
             }
         }

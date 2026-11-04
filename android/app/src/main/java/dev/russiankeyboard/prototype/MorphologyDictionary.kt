@@ -31,14 +31,16 @@ class MorphologyDictionary(buffer: ByteBuffer) {
         }
         return current
     }
-    fun contains(word: String): Boolean {
+    fun contains(word: String): Boolean = matches(word, true)
+    fun hasPrefix(word: String): Boolean = matches(word, false)
+    private fun matches(word: String, complete: Boolean): Boolean {
         if (word.isEmpty() || word.length > 40) return false
         var exact = 0
         for (byte in word.toByteArray(Charsets.UTF_8)) {
             exact = follow(exact, byte.toInt() and 255)
             if (exact < 0) break
         }
-        if (exact >= 0 && follow(exact, 1) > 0) return true
+        if (exact >= 0 && (!complete || follow(exact, 1) > 0)) return true
         if ('е' !in word && 'ё' !in word) return false
         var states = listOf(0)
         for (char in word) {
@@ -53,6 +55,6 @@ class MorphologyDictionary(buffer: ByteBuffer) {
             states = next.take(64)
         }
         // RecordDAWG stores a payload separator after each complete word.
-        return states.any { follow(it, 1) > 0 }
+        return states.any { !complete || follow(it, 1) > 0 }
     }
 }

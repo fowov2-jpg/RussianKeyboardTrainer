@@ -31,7 +31,7 @@ class MainActivity : Activity() {
             setTypeface(null, android.graphics.Typeface.BOLD)
         })
         column.addView(TextView(this).apply {
-            text = "Автоматическая пунктуация · Офлайн · 1.0.0-rc4"
+            text = "Исправление при наборе · Офлайн · 1.0.0-rc5"
             textSize = 13f
             setPadding(0, (4 * density).toInt(), 0, (8 * density).toInt())
         })
@@ -49,7 +49,7 @@ class MainActivity : Activity() {
             }
         })
         column.addView(TextView(this).apply {
-            text = "Напиши «привет как дела» и дождись исправления. Backspace отменяет замену. " +
+            text = "Пиши «привет как дела» — клавиатура исправляет во время набора. Backspace отменяет замену. " +
                 "Контекст видимого чата включается в ⚙ → доступ Android."
             textSize = 13f
             setPadding(0, (8 * density).toInt(), 0, (4 * density).toInt())

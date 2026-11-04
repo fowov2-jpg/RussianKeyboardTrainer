@@ -8,6 +8,20 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class LatestRequestQueueTest {
+    @Test fun continuousInputPreservesRunningResultAndCoalescesWaitingWork() {
+        val posts = LinkedBlockingQueue<() -> Unit>()
+        val started = CountDownLatch(1); val release = CountDownLatch(1)
+        val applied = mutableListOf<Int>()
+        LatestRequestQueue { posts.add(it) }.use { queue ->
+            queue.submit({ started.countDown(); release.await(3, TimeUnit.SECONDS); 0 }, { applied.add(it) }, coalesce = true)
+            assertTrue(started.await(3, TimeUnit.SECONDS))
+            for (i in 1..100) queue.submit({ i }, { applied.add(it) }, coalesce = true)
+            release.countDown()
+            requireNotNull(posts.poll(3, TimeUnit.SECONDS))()
+            requireNotNull(posts.poll(3, TimeUnit.SECONDS))()
+            assertEquals(listOf(0, 100), applied)
+        }
+    }
     @Test fun aCallbackAlreadyPostedToUiCannotApplyAfterNewInput() {
         val posts = LinkedBlockingQueue<() -> Unit>()
         val applied = mutableListOf<String>()

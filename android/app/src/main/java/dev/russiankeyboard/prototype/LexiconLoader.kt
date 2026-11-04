@@ -10,11 +10,13 @@ object LexiconLoader {
     @Volatile private var loaded: RussianLexicon? = null
     @Volatile private var contextAssistant: ContextualAssistant? = null
     @Volatile private var knownForms: MorphologyDictionary? = null
+    @Volatile private var prefixIndex: SpellingIndex? = null
     @Volatile private var started = false
     private val worker = Executors.newSingleThreadExecutor()
     val current: RussianLexicon? get() = loaded.takeIf { knownForms != null }
     val morphology: MorphologyDictionary? get() = knownForms
     val assistant: ContextualAssistant? get() = contextAssistant
+    val spelling: SpellingIndex? get() = prefixIndex
 
     @Synchronized fun warmUp(context: Context) {
         if (started) return
@@ -35,8 +37,9 @@ object LexiconLoader {
                 }
                 fun lines(name: String) = app.assets.open("context/$name").bufferedReader().use { it.readLines() }
                 knownForms = MorphologyDictionary(mapped("morphology.bin"))
+                prefixIndex = SpellingIndex(mapped("spelling.bin"))
                 contextAssistant = ContextualAssistant(requireNotNull(loaded),
-                    SpellingIndex(mapped("spelling.bin")), ContextLanguageModel(mapped("language.bin")),
+                    requireNotNull(prefixIndex), ContextLanguageModel(mapped("language.bin")),
                     ContextualAssistant.parsePredictions(lines("predictions.tsv")),
                     ContextualAssistant.parseGrammar(lines("grammar.tsv")), knownForms)
             } catch (_: java.io.IOException) {

@@ -36,6 +36,11 @@ class RussianKeyboardImeService : InputMethodService() {
     private var keepAfterUndo = false
     private val handler = Handler(Looper.getMainLooper())
     private val requests = LatestRequestQueue { handler.post(it) }
+    private val suggestionRequests = LatestRequestQueue { handler.post(it) }
+    private val liveSpelling = LiveSpellingController(engine,
+        { LexiconLoader.morphology != null && LexiconLoader.spelling != null },
+        { LexiconLoader.morphology?.hasPrefix(it) == true || LexiconLoader.spelling?.hasPrefix(it) == true },
+        { LexiconLoader.morphology?.hasPrefix(it) == true || LexiconLoader.spelling?.hasContinuation(it) == true })
     private var refreshTask: Runnable? = null
     private var session = 0L
     private var selectionStart = -1
@@ -57,7 +62,10 @@ class RussianKeyboardImeService : InputMethodService() {
     private var punctuator: OnDevicePunctuator? = null // analysis worker owns this session
     @Volatile private var punctuationState = "загрузка при наборе"
     private var suppressedAutomatic: String? = null
-    private var pendingSend = false
+    private var lastSubmitted: Snapshot? = null
+    private var warmedPunctuation = false
+    private data class Finalized(val text: String, val replacement: String, val session: Long, val revision: Long?)
+    private var finalized: Finalized? = null
     private var manualContextSession: Long? = null
     private data class Provisional(val suffix: String, val terminal: String, val end: Int)
     private var provisional: Provisional? = null
@@ -286,11 +294,13 @@ class RussianKeyboardImeService : InputMethodService() {
     }
 
     private fun handleKey(key: String) {
-        if (key == "↵" && pendingSend) return
-        cancelAnalysis()
+        val enterResult = if (key == "↵") finalized else null
+        cancelAnalysis(cancelModel = key == "⌫" || key == "↵")
+        if (key == "↵") finalized = enterResult
         cancelPreview()
         val connection = currentInputConnection ?: return
-        if (key != "⌫" && key != "⇧") reopenProvisional(connection)
+        var appendedKey = if (key == "Пробел") " " else key
+        if (key != "⌫" && key != "⇧" && key != "↵") reopenProvisional(connection)
         when (key) {
             "⇧" -> {
                 shifted = !shifted
@@ -299,6 +309,7 @@ class RussianKeyboardImeService : InputMethodService() {
                 }
             }
             "⌫" -> if (!undoLastCorrection(connection)) {
+                liveSpelling.clear()
                 keepAfterUndo = false
                 connection.deleteSurroundingTextInCodePoints(1, 0)
             }
@@ -318,6 +329,7 @@ class RussianKeyboardImeService : InputMethodService() {
                 undo.clear()
                 keepAfterUndo = false
                 val value = if (shifted) key.uppercase(Locale.forLanguageTag("ru")) else key
+                appendedKey = value
                 connection.commitText(value, 1)
                 if (shifted) {
                     shifted = false
@@ -325,7 +337,21 @@ class RussianKeyboardImeService : InputMethodService() {
                 }
             }
         }
+        if (key != "⇧" && key != "⌫") liveCorrection(connection, appendedKey)
         refreshSuggestion()
+    }
+
+    private fun liveCorrection(connection: InputConnection, key: String) {
+        val info = currentInputEditorInfo
+        if (info == null || !TextFieldPolicy.canAutocorrect(info.inputType, info.imeOptions)) { liveSpelling.clear(); return }
+        if (english || numeric || !preferences.getBoolean("autocorrect", true) ||
+            !preferences.getBoolean("automatic_writing", true) || keepAfterUndo ||
+            connection.getTextAfterCursor(1, 0)?.isEmpty() != true) { liveSpelling.clear(); return }
+        val before = readContext(connection) ?: run { liveSpelling.clear(); return }
+        if (before.trim() == suppressedAutomatic) { liveSpelling.clear(); return }
+        val plan = liveSpelling.appended(before, key) ?: return
+        plan.edit?.let { applyEdit(connection, it) }
+        if (plan.checkpoint != null) undo.record(plan.checkpoint) else undo.clear()
     }
 
     private fun readContext(connection: InputConnection, limit: Int = 240): String? {
@@ -375,24 +401,26 @@ class RussianKeyboardImeService : InputMethodService() {
         keepButton?.isEnabled = shownSuggestion?.edit?.expectedSuffix?.isNotEmpty() == true
     }
 
-    private fun cancelAnalysis() {
+    private fun cancelAnalysis(cancelModel: Boolean = true) {
         refreshTask?.let { handler.removeCallbacks(it) }
         refreshTask = null
-        automaticTask?.let { handler.removeCallbacks(it) }; automaticTask = null
-        pendingSend = false
-        requests.invalidate()
+        if (cancelModel) {
+            automaticTask?.let { handler.removeCallbacks(it) }; automaticTask = null
+            requests.invalidate(); lastSubmitted = null; finalized = null
+        }
+        suggestionRequests.invalidate()
         showChoices(emptyList())
     }
 
     private fun refreshSuggestion() {
-        cancelAnalysis()
+        cancelAnalysis(cancelModel = false)
         reviewButton?.text = "Проверить"
         bindConversation()
         scheduleAutomatic()
         if (keepAfterUndo || preview != null || english || numeric || !preferences.getBoolean("suggestions", true)) return
         refreshTask = Runnable {
             val at = snapshot() ?: return@Runnable
-            requests.submit({
+            suggestionRequests.submit({
                 val advanced = LexiconLoader.assistant?.suggestions(at.text).orEmpty()
                 (advanced.take(1) + engine.suggestions(at.text) + advanced.drop(1))
                     .distinctBy { it.edit.replacementWithSpace }.take(3)
@@ -489,12 +517,12 @@ class RussianKeyboardImeService : InputMethodService() {
         applyEdit(connection, edit)
     }
 
-    private fun applyEdit(connection: InputConnection, edit: RussianCorrectionEngine.Edit) {
+    private fun applyEdit(connection: InputConnection, edit: RussianCorrectionEngine.Edit, combineUndo: Boolean = false) {
         connection.beginBatchEdit()
         try {
             val deleted = edit.expectedSuffix.isEmpty() || connection.deleteSurroundingText(edit.expectedSuffix.length, 0)
             if (deleted && connection.commitText(edit.replacementWithSpace, 1)) {
-                undo.record(edit)
+                undo.record(edit, combineUndo)
             }
         } finally {
             connection.endBatchEdit()
@@ -529,6 +557,7 @@ class RussianKeyboardImeService : InputMethodService() {
             if (!connection.deleteSurroundingText(count, 0)) return false
             if (!connection.commitText(previous, 1)) return false
             keepAfterUndo = true
+            liveSpelling.clear()
             provisional = null
             suppressedAutomatic = readContext(connection, 640)?.trim()
         } finally {
@@ -540,6 +569,7 @@ class RussianKeyboardImeService : InputMethodService() {
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         session++
+        liveSpelling.clear()
         suppressedAutomatic = null; provisional = null; manualContextSession = null
         ConversationContext.clear()
         selectionStart = attribute?.initialSelStart ?: -1
@@ -562,6 +592,7 @@ class RussianKeyboardImeService : InputMethodService() {
 
     override fun onFinishInput() {
         session++
+        liveSpelling.clear()
         ConversationContext.clear(); provisional = null; suppressedAutomatic = null
         cancelAnalysis(); cancelPreview()
         undo.clear()
@@ -594,6 +625,7 @@ class RussianKeyboardImeService : InputMethodService() {
         cancelAnalysis(); cancelPreview()
         ConversationContext.changed = null; ConversationContext.clear()
         requests.close { punctuator?.close(); punctuator = null }
+        suggestionRequests.close()
         super.onDestroy()
     }
 
@@ -606,7 +638,15 @@ class RussianKeyboardImeService : InputMethodService() {
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         val started = session
-        handler.post { if (session == started && isInputViewShown) refreshSuggestion() }
+        handler.post {
+            if (session == started && isInputViewShown) {
+                if (!warmedPunctuation && TextFieldPolicy.canAutocorrect(info?.inputType ?: 0, info?.imeOptions ?: 0)) {
+                    warmedPunctuation = true
+                    requests.submit({ punctuation(); Unit }, {}, coalesce = true)
+                }
+                refreshSuggestion()
+            }
+        }
     }
 
     private fun punctuation(): OnDevicePunctuator {
@@ -617,41 +657,68 @@ class RussianKeyboardImeService : InputMethodService() {
     }
     private fun automaticSnapshot(): Snapshot? {
         val connection = currentInputConnection ?: return null
+        val info = currentInputEditorInfo ?: return null
+        if (!TextFieldPolicy.canAutocorrect(info.inputType, info.imeOptions)) return null
         // A suffix before text later in the field is not a complete utterance.
         if (connection.getTextAfterCursor(1, 0)?.isEmpty() != true) return null
         return snapshot(640)
     }
     private fun normalizedAutomatic(text: String) = text.trim()
     private fun scheduleAutomatic() {
-        automaticTask?.let { handler.removeCallbacks(it) }; automaticTask = null
-        if (!isInputViewShown || preview != null || contextPanel?.visibility == View.VISIBLE || pendingSend ||
+        if (!isInputViewShown || preview != null || contextPanel?.visibility == View.VISIBLE ||
             !preferences.getBoolean("automatic_writing", true)) return
+        if (automaticTask != null) return
         automaticTask = Runnable {
+            automaticTask = null
             val at = automaticSnapshot() ?: return@Runnable
             if (at.text.isBlank() || at.text.none { it in 'а'..'я' || it in 'А'..'Я' || it == 'ё' || it == 'Ё' } ||
                 normalizedAutomatic(at.text) == suppressedAutomatic) return@Runnable
+            if (at == lastSubmitted) return@Runnable
+            lastSubmitted = at
             val profile = writingProfile(); val context = conversationText(profile)
             val revision = ConversationContext.snapshot()?.revision
             requests.submit({ analyzeAutomatically(at.text, context, profile, PunctuationPlanner.Mode.STREAMING) }, { result ->
-                if (automaticSnapshot() != at || ConversationContext.snapshot()?.revision != revision || result == null) return@submit
+                if (ConversationContext.snapshot()?.revision != revision || result == null) return@submit
                 applyAutomatic(at, result)
-            }, { punctuationState = "ошибка загрузки или анализа"; updateContextLabel() })
-        }.also { handler.postDelayed(it, 1100) }
+            }, { punctuationState = "ошибка загрузки или анализа"; updateContextLabel() }, coalesce = true)
+        }.also { handler.postDelayed(it, 160) }
     }
     private fun analyzeAutomatically(text: String, context: String, profile: WritingProfile,
                                      mode: PunctuationPlanner.Mode): AutomaticWritingEngine.Result? {
         val bounded = if (text.length == 640) text.substringAfter(' ', "") else text
-        return AutomaticWritingEngine(engine, LexiconLoader.assistant, { value, history, pass, first ->
+        val span = StreamingTextBoundary.split(bounded,
+            { LexiconLoader.morphology?.contains(it) == true || LexiconLoader.spelling?.contains(it) == true },
+            { LexiconLoader.morphology?.hasPrefix(it) == true || LexiconLoader.spelling?.hasContinuation(it) == true })
+        val result = AutomaticWritingEngine(engine, LexiconLoader.assistant, { value, history, pass, first ->
             punctuation().predict(value, history, pass, first)
-        }, preferences.getBoolean("autocorrect", true)).analyze(bounded, context, profile, mode, text.length < 640)
+        }, preferences.getBoolean("autocorrect", true)).analyze(span.input, context, profile, mode, text.length < 640) ?: return null
+        if (span.tail.isEmpty()) return result
+        val joined = StreamingEditRebaser.rebase(result.original, result.replacement, result.provisionalTerminal,
+            span.input.length, bounded, bounded.length) ?: return null
+        return result.copy(original = joined.original, replacement = joined.replacement,
+            provisionalTerminal = null, finalizedReplacement = null)
     }
     private fun applyAutomatic(at: Snapshot, result: AutomaticWritingEngine.Result) {
-        if (automaticSnapshot() != at || !at.text.endsWith(result.original)) return
+        if (preview != null || contextPanel?.visibility == View.VISIBLE) return
+        val now = automaticSnapshot() ?: return
+        if (now.session != at.session || now.contextRevision != at.contextRevision ||
+            now.start != now.end || now.text.trim() == suppressedAutomatic) return
+        val edit = StreamingEditRebaser.rebase(result.original, result.replacement, result.provisionalTerminal,
+            at.end, now.text, now.end) ?: return
         val connection = currentInputConnection ?: return
-        applyEdit(connection, RussianCorrectionEngine.Edit(result.original, result.replacement, RussianCorrectionEngine.Reason.PHRASE))
-        if (result.provisionalTerminal != null) {
-            val end = if (at.end >= 0) at.end + result.replacement.length - result.original.length else -1
-            provisional = Provisional(result.replacement.takeLast(120), result.provisionalTerminal, end)
+        if (edit.original != edit.replacement) {
+            applyEdit(connection, RussianCorrectionEngine.Edit(edit.original, edit.replacement, RussianCorrectionEngine.Reason.PHRASE), combineUndo = true)
+            liveSpelling.reconcile(edit.replacement)
+        }
+        if (edit.tail.isBlank() && result.finalizedReplacement != null) {
+            val prefix = now.text.dropLast(edit.original.length)
+            val shown = prefix + edit.replacement
+            finalized = Finalized(shown.takeLast(640),
+                (prefix + result.finalizedReplacement + edit.tail).drop((shown.length - 640).coerceAtLeast(0)), now.session, now.contextRevision)
+        }
+        if (edit.provisionalTerminal != null) {
+            val end = now.end + edit.replacement.length - edit.original.length
+            provisional = Provisional(edit.replacement.takeLast(120), edit.provisionalTerminal, end)
         }
     }
     private fun reopenProvisional(connection: InputConnection) {
@@ -671,18 +738,16 @@ class RussianKeyboardImeService : InputMethodService() {
         val at = automaticSnapshot()
         if (!preferences.getBoolean("automatic_writing", true) || at == null || at.text.isBlank() ||
             normalizedAutomatic(at.text) == suppressedAutomatic) { finish(); return }
-        val profile = writingProfile(); val context = conversationText(profile)
-        pendingSend = true
-        reviewButton?.text = "Готовлю…"
-        requests.submit({ analyzeAutomatically(at.text, context, profile, PunctuationPlanner.Mode.FINALIZE) }, { result ->
-            if (automaticSnapshot() != at) { pendingSend = false; return@submit }
-            pendingSend = false
-            if (result != null) applyAutomatic(at, result)
-            finish()
-        }, {
-            pendingSend = false; punctuationState = "анализ недоступен"
-            if (automaticSnapshot() == at) finish()
-        })
+        val cached = finalized
+        if (cached != null && cached.session == at.session && cached.revision == at.contextRevision &&
+            cached.text.trimEnd() == at.text.trimEnd()) {
+            val replacement = cached.replacement.trimEnd() + at.text.takeLastWhile { it.isWhitespace() }
+            if (replacement != at.text) currentInputConnection?.let {
+                applyEdit(it, RussianCorrectionEngine.Edit(at.text, replacement, RussianCorrectionEngine.Reason.PHRASE))
+            }
+        }
+        // Never hold the user's Send/Next/newline action behind native inference.
+        finish()
     }
     private fun bindConversation() {
         val info = currentInputEditorInfo

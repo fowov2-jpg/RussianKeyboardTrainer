@@ -61,6 +61,12 @@ class SpellingIndex(buffer: ByteBuffer) {
         val node = prefixNode(value)
         return node >= 0 && field(node, 3) >= 0
     }
+    fun hasPrefix(value: String): Boolean = value.isNotEmpty() && value.length <= 28 && prefixNode(value) >= 0
+    fun hasContinuation(value: String): Boolean {
+        if (value.isEmpty() || value.length > 28) return false
+        val node = prefixNode(value)
+        return node >= 0 && field(node, 1) >= 0
+    }
 
     fun complete(prefix: String, limit: Int = 3): List<Match> {
         if (prefix.isEmpty() || prefix.length > 28 || limit !in 1..16) return emptyList()

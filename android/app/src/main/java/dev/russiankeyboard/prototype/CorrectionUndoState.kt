@@ -7,8 +7,11 @@ package dev.russiankeyboard.prototype
 class CorrectionUndoState {
     private var pending: RussianCorrectionEngine.Edit? = null
 
-    fun record(edit: RussianCorrectionEngine.Edit) {
-        pending = edit
+    fun record(edit: RussianCorrectionEngine.Edit, combine: Boolean = false) {
+        val old = pending
+        pending = if (combine && old != null && edit.expectedSuffix.endsWith(old.replacementWithSpace))
+            edit.copy(expectedSuffix = edit.expectedSuffix.dropLast(old.replacementWithSpace.length) + old.expectedSuffix)
+        else edit
     }
 
     fun suffixLength(): Int = pending?.replacementWithSpace?.length ?: 0

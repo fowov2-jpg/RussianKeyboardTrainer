@@ -102,3 +102,17 @@ jobs:
             android/app/build/outputs/apk/debug/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 7
+      - name: Package the complete project source
+        shell: bash
+        run: |
+          mkdir -p reports/source
+          git archive --format=zip --prefix=RussianKeyboardTrainer/ --output=reports/source/RussianKeyboardTrainer-source.zip HEAD
+          git rev-parse HEAD > reports/source/SOURCE_COMMIT.txt
+          sha256sum reports/source/RussianKeyboardTrainer-source.zip > reports/source/SHA256SUMS.txt
+      - name: Upload complete project source
+        uses: actions/upload-artifact@v4
+        with:
+          name: russian-keyboard-complete-source
+          path: reports/source/
+          if-no-files-found: error
+          retention-days: 30

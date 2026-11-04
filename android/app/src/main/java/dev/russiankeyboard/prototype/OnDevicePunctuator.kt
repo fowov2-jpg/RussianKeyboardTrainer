@@ -35,7 +35,11 @@ class OnDevicePunctuator private constructor(
                         val scores = encoding.words.map { word ->
                             PunctuationPlanner.prediction(tokens[word.firstToken] as? FloatArray ?: error("Invalid punctuation logits"))
                         }
-                        return PunctuationPlanner.plan(text, encoding, scores, mode)
+                        val planned = PunctuationPlanner.plan(text, encoding, scores, mode)
+                        if (mode != PunctuationPlanner.Mode.STREAMING) return planned
+                        val finalized = PunctuationPlanner.plan(text, encoding, scores, PunctuationPlanner.Mode.FINALIZE)?.text ?: text
+                        return if (planned != null) planned.copy(finalizedText = finalized)
+                            else if (finalized != text) PunctuationPlanner.Result(text, null, finalized) else null
                     }
                 }
             }

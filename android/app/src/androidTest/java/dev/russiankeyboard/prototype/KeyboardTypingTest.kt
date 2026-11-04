@@ -267,6 +267,19 @@ class KeyboardTypingTest {
             app.getSharedPreferences("keyboard", Context.MODE_PRIVATE).edit().putBoolean("automatic_writing", true).commit()
             scenario.onActivity { activity ->
                 val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText(""); field.setSelection(0)
+            }
+            // Last letter changes the word immediately: no Space, Review or pause.
+            for (key in listOf("с", "е", "в", "о", "д", "н", "я")) findKey(key, 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("сегодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+            }
+            findKey("Удалить", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("севодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+            }
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
                 field.setText("привет как дела"); field.setSelection(field.length())
             }
             findKey("Пробел", 8_000)!!.click()
@@ -278,16 +291,26 @@ class KeyboardTypingTest {
             findKey("Удалить", 8_000)!!.click()
             scenario.onActivity { activity ->
                 val field = activity.findViewById<EditText>(R.id.demo_editor)
-                field.setText("как дела у тебя"); field.setSelection(field.length())
+                field.setText("Как дела у тебя"); field.setSelection(field.length())
             }
             findKey("Пробел", 8_000)!!.click()
             assertTrue(device.wait(Until.hasObject(By.res(app.packageName, "demo_editor").text("Как дела у тебя? ")), 20_000))
             findKey("Удалить", 8_000)!!.click()
-            assertTrue(device.wait(Until.hasObject(By.res(app.packageName, "demo_editor").text("как дела у тебя ")), 5_000))
+            assertTrue(device.wait(Until.hasObject(By.res(app.packageName, "demo_editor").text("Как дела у тебя ")), 5_000))
             // A cancelled correction must stay cancelled through the next idle pass.
             android.os.SystemClock.sleep(1_600)
             scenario.onActivity { activity ->
-                assertEquals("как дела у тебя ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+                assertEquals("Как дела у тебя ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("Спасибо за помощь"); field.setSelection(field.length())
+            }
+            findKey("Shift", 8_000)!!.click()
+            device.waitForIdle()
+            findKey("Новая строка", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("Спасибо за помощь.\n", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
             }
         }
     }

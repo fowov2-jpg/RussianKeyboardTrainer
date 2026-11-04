@@ -37,7 +37,7 @@ class KeyboardSettingsActivity : Activity() {
                 }
             })
         }
-        toggle("autocorrect", "Исправлять явные опечатки по пробелу")
+        toggle("autocorrect", "Исправлять явные опечатки")
         toggle("automatic_writing", "Автоматически исправлять фразу и пунктуацию")
         toggle("suggestions", "Контекстные подсказки и продолжения слов")
         toggle("screen_context", "Учитывать видимый чат при наборе", false)

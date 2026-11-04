@@ -22,9 +22,14 @@ class LatestRequestQueue(private val post: (() -> Unit) -> Unit) : Closeable {
         executor.queue.clear()
         pending = null
     }
-    @Synchronized fun <T> submit(work: () -> T, apply: (T) -> Unit, failed: () -> Unit = {}) {
+    @Synchronized fun <T> submit(work: () -> T, apply: (T) -> Unit, failed: () -> Unit = {}, coalesce: Boolean = false) {
         if (executor.isShutdown) return
-        invalidate()
+        if (coalesce) {
+            // Keep running inference useful while replacing only waiting work.
+            // cancel(false) does not interrupt a running task's body/callback.
+            pending?.cancel(false)
+            executor.queue.clear()
+        } else invalidate()
         val requested = revision.get()
         pending = executor.submit {
             try {
