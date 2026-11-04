@@ -22,8 +22,8 @@ android {
         applicationId = "dev.russiankeyboard.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.0-rc3"
+        versionCode = 5
+        versionName = "1.0.0-rc4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -47,6 +47,8 @@ android {
             it.systemProperty("rsk.context", file("src/main/assets/context").absolutePath)
             it.systemProperty("rsk.contextReport", layout.buildDirectory.file("reports/context-runtime.json").get().asFile.absolutePath)
             it.inputs.dir(file("src/main/assets/context")).withPropertyName("contextAssets")
+            it.systemProperty("rsk.punctuation", file("src/main/assets/punctuation").absolutePath)
+            it.inputs.dir(file("src/main/assets/punctuation")).withPropertyName("punctuationAssets")
             it.outputs.file(layout.buildDirectory.file("reports/lexicon-runtime.json"))
             it.outputs.file(layout.buildDirectory.file("reports/context-runtime.json"))
         }
@@ -54,7 +56,7 @@ android {
 }
 
 dependencies {
-    // Session is opened only for explicit diagnostics; IME typing stays rule-based.
+    // Local neural punctuation; one session on the bounded analysis worker.
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:core:1.6.1")

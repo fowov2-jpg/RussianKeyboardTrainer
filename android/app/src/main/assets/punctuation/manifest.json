@@ -1,0 +1,16 @@
+{
+  "source": "RUPunct/RUPunct_small",
+  "export": "ekhodzitsky/rupunct-small-onnx",
+  "revision": "c4a35be7e4a413cdfb08427db75b621b571569c9",
+  "license": "MIT",
+  "sha256": {
+    "tokenizer.json": "7ca617388c2092a3a84272025c52bbf3c6db0aee225c0351186295c0b5d3ddc6",
+    "config.json": "6924a8cf41ec2bd3a3aa73a387ae0ccd0aed253ec7cac4d2f53c7d27440891eb",
+    "README.md": "a793c033ec91bfc33f2d926fd1fc5cc7b2b95b4afcd302a41dfe9ac125c382bd",
+    "tokenizer_config.json": "8ba2b70dc87389f5454547f5d1e9db0dd349238a0e89e2a57bb1b92b1ef86bd6",
+    "vocab.txt": "f056a69b097422652053bf87565c35543e5d81540ca4b7dddd28de4157a969e0",
+    "model.bin": "b105da023474d98aa13ba18953ae67b04b17bd0595034bc06030c17536893933"
+  },
+  "model_bytes": 29259673,
+  "original_model_filename": "rupunct_small_int8.onnx"
+}

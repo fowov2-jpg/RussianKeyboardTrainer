@@ -64,7 +64,9 @@ if grep -Eqi "unknown input method|cannot be" reports/emulator/ime-enable.txt re
   exit 1
 fi
 adb shell settings put secure show_ime_with_hard_keyboard 1
+adb logcat -c
 gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest
+adb logcat -d -v brief -s RSK_PUNCT_BENCH:I '*:S' > reports/emulator/punctuation-benchmark.txt
 
 adb install -r "$APK"
 adb shell am start -n "$APP/.MainActivity"

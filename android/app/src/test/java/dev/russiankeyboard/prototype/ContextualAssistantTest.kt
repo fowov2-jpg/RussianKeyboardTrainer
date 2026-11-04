@@ -61,6 +61,14 @@ class ContextualAssistantTest {
         assertTrue(predictions.all { it.edit.reason == RussianCorrectionEngine.Reason.PREDICTION && !it.automatic })
     }
 
+    @Test fun personalGenderRequiresExplicitConfigurationAndNeverChangesQuotedSpeech() {
+        assertEquals("Я работал", assistant.automaticGrammar("Я работал", WritingProfile()))
+        assertEquals("Я работала", assistant.automaticGrammar("Я работал", WritingProfile(speakerGender = "Fem")))
+        assertEquals("Ты работал", assistant.automaticGrammar("Ты работал", WritingProfile(speakerGender = "Fem")))
+        assertEquals("Ты работала", assistant.automaticGrammar("Ты работал", WritingProfile(recipientGender = "Fem")))
+        assertEquals("«Я работал»", assistant.automaticGrammar("«Я работал»", WritingProfile(speakerGender = "Fem")))
+    }
+
     @Test fun evaluateOnSentenceHoldoutAndPreviouslyUnseenErrors() {
         val engine = RussianCorrectionEngine(morphology = { morphology }, lexicon = { lexicon })
         val source = requireNotNull(javaClass.classLoader?.getResourceAsStream("context_holdout.tsv.gz"))

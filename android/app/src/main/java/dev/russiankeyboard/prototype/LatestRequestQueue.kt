@@ -36,13 +36,16 @@ class LatestRequestQueue(private val post: (() -> Unit) -> Unit) : Closeable {
                 // A more recent editor revision owns the result.
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
-            } catch (_: RuntimeException) {
+            } catch (_: Exception) {
                 post { if (revision.get() == requested && !executor.isShutdown) failed() }
             }
         }
     }
-    @Synchronized override fun close() {
+    @Synchronized fun close(after: () -> Unit) {
+        if (executor.isShutdown) return
         invalidate()
-        executor.shutdownNow()
+        executor.execute(after)
+        executor.shutdown()
     }
+    override fun close() { close {} }
 }

@@ -16,7 +16,7 @@ import java.util.Locale
 
 /**
  * Minimal offline Russian IME. Key events never wait for ML/network.
- * Android IME exposes only the active editor; it cannot access chat history.
+ * Optional accessibility context is separate from the active editor and opt-in.
  */
 class RussianKeyboardImeService : InputMethodService() {
     private val engine = RussianCorrectionEngine(morphology = { LexiconLoader.morphology },
@@ -40,7 +40,7 @@ class RussianKeyboardImeService : InputMethodService() {
     private var session = 0L
     private var selectionStart = -1
     private var selectionEnd = -1
-    private data class Snapshot(val text: String, val session: Long, val start: Int, val end: Int)
+    private data class Snapshot(val text: String, val session: Long, val start: Int, val end: Int, val contextRevision: Long?)
     private var shownAt: Snapshot? = null
     private var previewAt: Snapshot? = null
     private var preview: ContextualAssistant.Review? = null
@@ -50,11 +50,23 @@ class RussianKeyboardImeService : InputMethodService() {
     private var reviewButton: Button? = null
     private var numberButton: Button? = null
     private var languageButton: Button? = null
+    private var contextButton: Button? = null
+    private var contextPanel: LinearLayout? = null
+    private var contextText: TextView? = null
+    private var automaticTask: Runnable? = null
+    private var punctuator: OnDevicePunctuator? = null // analysis worker owns this session
+    @Volatile private var punctuationState = "загрузка при наборе"
+    private var suppressedAutomatic: String? = null
+    private var pendingSend = false
+    private var manualContextSession: Long? = null
+    private data class Provisional(val suffix: String, val terminal: String, val end: Int)
+    private var provisional: Provisional? = null
     private val preferences by lazy { getSharedPreferences("keyboard", MODE_PRIVATE) }
 
     override fun onCreate() {
         super.onCreate()
         LexiconLoader.warmUp(this)
+        ConversationContext.changed = { updateContextLabel(); scheduleAutomatic() }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -126,14 +138,24 @@ class RussianKeyboardImeService : InputMethodService() {
         keyboard.addView(suggestions)
         val tools = LinearLayout(this)
         reviewButton = Button(this).apply {
-            text = "Проверить фразу"
+            text = "Проверить"
+            textSize = 12f
+            setPadding(dp(4), 0, dp(4), 0)
             isAllCaps = false
             contentDescription = "Проверить фразу"
             val info = currentInputEditorInfo
             isEnabled = info != null && TextFieldPolicy.canAutocorrect(info.inputType, info.imeOptions)
             setOnClickListener { requestReview() }
         }
-        tools.addView(reviewButton, LinearLayout.LayoutParams(0, dp(48), 4f))
+        tools.addView(reviewButton, LinearLayout.LayoutParams(0, dp(48), 1f))
+        contextButton = Button(this).apply {
+            text = "Контекст"; textSize = 12f; isAllCaps = false; maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            setPadding(dp(3), 0, dp(3), 0)
+            contentDescription = "Контекст разговора"
+            setOnClickListener { showConversation() }
+        }
+        tools.addView(contextButton, LinearLayout.LayoutParams(0, dp(48), 1f))
         numberButton = Button(this).apply {
             text = "123"; textSize = 12f; setPadding(0, 0, 0, 0)
             contentDescription = "Цифры и символы"
@@ -142,7 +164,7 @@ class RussianKeyboardImeService : InputMethodService() {
                 cancelPreview(); renderKeys(); refreshSuggestion()
             }
         }
-        tools.addView(numberButton, LinearLayout.LayoutParams(0, dp(48), 1.3f))
+        tools.addView(numberButton, LinearLayout.LayoutParams(dp(48), dp(48)))
         languageButton = Button(this).apply {
             text = "EN"; textSize = 12f; setPadding(0, 0, 0, 0)
             contentDescription = "Переключить язык"
@@ -151,13 +173,12 @@ class RussianKeyboardImeService : InputMethodService() {
                 cancelPreview(); renderKeys(); refreshSuggestion()
             }
         }
-        tools.addView(languageButton, LinearLayout.LayoutParams(0, dp(48), 1.3f))
+        tools.addView(languageButton, LinearLayout.LayoutParams(dp(48), dp(48)))
         tools.addView(Button(this).apply {
             text = "⚙"
             contentDescription = "Настройки клавиатуры"
-            setOnClickListener { startActivity(Intent(this@RussianKeyboardImeService,
-                KeyboardSettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        }, LinearLayout.LayoutParams(0, dp(48), 1f))
+            setOnClickListener { openSettings() }
+        }, LinearLayout.LayoutParams(dp(48), dp(48)))
         keyboard.addView(tools)
         lettersPanel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val letters = requireNotNull(lettersPanel)
@@ -184,6 +205,27 @@ class RussianKeyboardImeService : InputMethodService() {
         }, LinearLayout.LayoutParams(0, dp(48), 1f))
         panel.addView(actions)
         keyboard.addView(panel, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(216)))
+        contextPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; visibility = View.GONE
+            setPadding(dp(8), dp(4), dp(8), 0)
+        }
+        contextText = TextView(this).apply { textSize = 14f; contentDescription = "Доступный контекст" }
+        contextPanel!!.addView(ScrollView(this).apply { addView(contextText) },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        val contextActions = LinearLayout(this)
+        contextActions.addView(Button(this).apply {
+            text = "Настроить"; isAllCaps = false; setOnClickListener { openSettings() }
+        }, LinearLayout.LayoutParams(0, dp(48), 1f))
+        contextActions.addView(Button(this).apply {
+            text = "Вручную"; isAllCaps = false
+            setOnClickListener { manualContextSession = session; cancelPreview(); updateContextLabel(); refreshSuggestion() }
+        }, LinearLayout.LayoutParams(0, dp(48), 1f))
+        contextActions.addView(Button(this).apply {
+            text = "Назад"; isAllCaps = false; setOnClickListener { cancelPreview(); refreshSuggestion() }
+        }, LinearLayout.LayoutParams(0, dp(48), 1f))
+        contextPanel!!.addView(contextActions)
+        keyboard.addView(contextPanel, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(216)))
+        updateContextLabel()
         return keyboard
     }
 
@@ -244,9 +286,11 @@ class RussianKeyboardImeService : InputMethodService() {
     }
 
     private fun handleKey(key: String) {
+        if (key == "↵" && pendingSend) return
         cancelAnalysis()
         cancelPreview()
         val connection = currentInputConnection ?: return
+        if (key != "⌫" && key != "⇧") reopenProvisional(connection)
         when (key) {
             "⇧" -> {
                 shifted = !shifted
@@ -264,9 +308,11 @@ class RussianKeyboardImeService : InputMethodService() {
                 keepAfterUndo = false
                 val info = currentInputEditorInfo
                 val action = info?.let { EditorActionPolicy.action(it.inputType, it.imeOptions) }
-                if (action != null) {
-                    connection.performEditorAction(action.code)
-                } else connection.commitText("\n", 1)
+                finishWithAutomatic {
+                    if (action != null) connection.performEditorAction(action.code)
+                    else connection.commitText("\n", 1)
+                }
+                return
             }
             else -> {
                 undo.clear()
@@ -282,7 +328,7 @@ class RussianKeyboardImeService : InputMethodService() {
         refreshSuggestion()
     }
 
-    private fun readContext(connection: InputConnection): String? {
+    private fun readContext(connection: InputConnection, limit: Int = 240): String? {
         // Do not read password or other sensitive input at all, even locally.
         val info = currentInputEditorInfo
         if (info == null || !TextFieldPolicy.canAutocorrect(info.inputType, info.imeOptions)) {
@@ -299,13 +345,13 @@ class RussianKeyboardImeService : InputMethodService() {
                     after[0] == '_' || after[0] == '-'))) {
             return null
         }
-        return connection.getTextBeforeCursor(240, 0)?.toString()
+        return connection.getTextBeforeCursor(limit, 0)?.toString()
     }
 
-    private fun snapshot(): Snapshot? {
+    private fun snapshot(limit: Int = 240): Snapshot? {
         val connection = currentInputConnection ?: return null
-        val text = readContext(connection) ?: return null
-        return Snapshot(text, session, selectionStart, selectionEnd)
+        val text = readContext(connection, limit) ?: return null
+        return Snapshot(text, session, selectionStart, selectionEnd, ConversationContext.snapshot()?.revision)
     }
 
     private fun showChoices(choices: List<RussianCorrectionEngine.Suggestion>, at: Snapshot? = null) {
@@ -332,13 +378,17 @@ class RussianKeyboardImeService : InputMethodService() {
     private fun cancelAnalysis() {
         refreshTask?.let { handler.removeCallbacks(it) }
         refreshTask = null
+        automaticTask?.let { handler.removeCallbacks(it) }; automaticTask = null
+        pendingSend = false
         requests.invalidate()
         showChoices(emptyList())
     }
 
     private fun refreshSuggestion() {
         cancelAnalysis()
-        reviewButton?.text = "Проверить фразу"
+        reviewButton?.text = "Проверить"
+        bindConversation()
+        scheduleAutomatic()
         if (keepAfterUndo || preview != null || english || numeric || !preferences.getBoolean("suggestions", true)) return
         refreshTask = Runnable {
             val at = snapshot() ?: return@Runnable
@@ -354,6 +404,8 @@ class RussianKeyboardImeService : InputMethodService() {
         preview = null; previewAt = null
         previewText?.text = ""
         previewPanel?.visibility = View.GONE
+        contextPanel?.visibility = View.GONE
+        contextText?.text = ""
         lettersPanel?.visibility = View.VISIBLE
     }
 
@@ -365,7 +417,15 @@ class RussianKeyboardImeService : InputMethodService() {
         reviewButton?.text = "Проверяю…"
         // The left edge of the bounded editor snapshot might cut a word.
         val span = if (at.text.length == 240) at.text.substringAfter(' ', "") else at.text
-        requests.submit({ assistant.review(span) }, { result ->
+        val profile = writingProfile()
+        val conversation = conversationText(profile)
+        requests.submit({
+            val base = assistant.review(span, conversation, profile)
+            val text = base?.proposed ?: span
+            val punctuated = punctuation().predict(text, conversation, PunctuationPlanner.Mode.FINALIZE)
+            val proposed = punctuated?.text ?: text
+            if (proposed == span) null else ContextualAssistant.Review(span, proposed, (base?.changes ?: 0) + if (punctuated != null) 1 else 0)
+        }, { result ->
             if (snapshot() != at) return@submit
             if (result == null) { reviewButton?.text = "Изменений нет"; return@submit }
             preview = result; previewAt = at
@@ -469,6 +529,8 @@ class RussianKeyboardImeService : InputMethodService() {
             if (!connection.deleteSurroundingText(count, 0)) return false
             if (!connection.commitText(previous, 1)) return false
             keepAfterUndo = true
+            provisional = null
+            suppressedAutomatic = readContext(connection, 640)?.trim()
         } finally {
             connection.endBatchEdit()
         }
@@ -478,6 +540,8 @@ class RussianKeyboardImeService : InputMethodService() {
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         session++
+        suppressedAutomatic = null; provisional = null; manualContextSession = null
+        ConversationContext.clear()
         selectionStart = attribute?.initialSelStart ?: -1
         selectionEnd = attribute?.initialSelEnd ?: -1
         reviewButton?.isEnabled = attribute != null && TextFieldPolicy.canAutocorrect(attribute.inputType, attribute.imeOptions)
@@ -498,6 +562,7 @@ class RussianKeyboardImeService : InputMethodService() {
 
     override fun onFinishInput() {
         session++
+        ConversationContext.clear(); provisional = null; suppressedAutomatic = null
         cancelAnalysis(); cancelPreview()
         undo.clear()
         keepAfterUndo = false
@@ -515,17 +580,146 @@ class RussianKeyboardImeService : InputMethodService() {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         val changed = selectionStart != newSelStart || selectionEnd != newSelEnd
         selectionStart = newSelStart; selectionEnd = newSelEnd
+        if (provisional != null && newSelEnd != provisional!!.end) provisional = null
         if (changed) { cancelPreview(); refreshSuggestion() }
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        ConversationContext.clear()
         cancelAnalysis(); cancelPreview()
         super.onFinishInputView(finishingInput)
     }
 
     override fun onDestroy() {
         cancelAnalysis(); cancelPreview()
-        requests.close()
+        ConversationContext.changed = null; ConversationContext.clear()
+        requests.close { punctuator?.close(); punctuator = null }
         super.onDestroy()
+    }
+
+    override fun onWindowShown() { super.onWindowShown(); bindConversation(); refreshSuggestion() }
+
+    private fun punctuation(): OnDevicePunctuator {
+        punctuator?.let { return it }
+        return OnDevicePunctuator.open(applicationContext).also {
+            punctuator = it; punctuationState = "готово"
+        }
+    }
+    private fun automaticSnapshot(): Snapshot? {
+        val connection = currentInputConnection ?: return null
+        // A suffix before text later in the field is not a complete utterance.
+        if (connection.getTextAfterCursor(1, 0)?.isEmpty() != true) return null
+        return snapshot(640)
+    }
+    private fun normalizedAutomatic(text: String) = text.trim()
+    private fun scheduleAutomatic() {
+        automaticTask?.let { handler.removeCallbacks(it) }; automaticTask = null
+        if (!isInputViewShown || preview != null || contextPanel?.visibility == View.VISIBLE || pendingSend ||
+            !preferences.getBoolean("automatic_writing", true)) return
+        automaticTask = Runnable {
+            val at = automaticSnapshot() ?: return@Runnable
+            if (at.text.isBlank() || at.text.none { it in 'а'..'я' || it in 'А'..'Я' || it == 'ё' || it == 'Ё' } ||
+                normalizedAutomatic(at.text) == suppressedAutomatic) return@Runnable
+            val profile = writingProfile(); val context = conversationText(profile)
+            val revision = ConversationContext.snapshot()?.revision
+            requests.submit({ analyzeAutomatically(at.text, context, profile, PunctuationPlanner.Mode.STREAMING) }, { result ->
+                if (automaticSnapshot() != at || ConversationContext.snapshot()?.revision != revision || result == null) return@submit
+                applyAutomatic(at, result)
+            }, { punctuationState = "ошибка загрузки или анализа"; updateContextLabel() })
+        }.also { handler.postDelayed(it, 1100) }
+    }
+    private fun analyzeAutomatically(text: String, context: String, profile: WritingProfile,
+                                     mode: PunctuationPlanner.Mode): AutomaticWritingEngine.Result? {
+        val bounded = if (text.length == 640) text.substringAfter(' ', "") else text
+        return AutomaticWritingEngine(engine, LexiconLoader.assistant, { value, history, pass, first ->
+            punctuation().predict(value, history, pass, first)
+        }, preferences.getBoolean("autocorrect", true)).analyze(bounded, context, profile, mode, text.length < 640)
+    }
+    private fun applyAutomatic(at: Snapshot, result: AutomaticWritingEngine.Result) {
+        if (automaticSnapshot() != at || !at.text.endsWith(result.original)) return
+        val connection = currentInputConnection ?: return
+        applyEdit(connection, RussianCorrectionEngine.Edit(result.original, result.replacement, RussianCorrectionEngine.Reason.PHRASE))
+        if (result.provisionalTerminal != null) {
+            val end = if (at.end >= 0) at.end + result.replacement.length - result.original.length else -1
+            provisional = Provisional(result.replacement.takeLast(120), result.provisionalTerminal, end)
+        }
+    }
+    private fun reopenProvisional(connection: InputConnection) {
+        val record = provisional ?: return
+        provisional = null
+        val before = readContext(connection, 640) ?: return
+        if (!before.endsWith(record.suffix) || selectionEnd != record.end) return
+        val spaces = record.suffix.takeLastWhile { it.isWhitespace() }
+        val suffix = record.terminal + spaces
+        if (!before.endsWith(suffix)) return
+        connection.beginBatchEdit()
+        try {
+            if (connection.deleteSurroundingText(suffix.length, 0) && spaces.isNotEmpty()) connection.commitText(spaces, 1)
+        } finally { connection.endBatchEdit() }
+    }
+    private fun finishWithAutomatic(finish: () -> Unit) {
+        val at = automaticSnapshot()
+        if (!preferences.getBoolean("automatic_writing", true) || at == null || at.text.isBlank() ||
+            normalizedAutomatic(at.text) == suppressedAutomatic) { finish(); return }
+        val profile = writingProfile(); val context = conversationText(profile)
+        pendingSend = true
+        reviewButton?.text = "Готовлю…"
+        requests.submit({ analyzeAutomatically(at.text, context, profile, PunctuationPlanner.Mode.FINALIZE) }, { result ->
+            if (automaticSnapshot() != at) { pendingSend = false; return@submit }
+            pendingSend = false
+            if (result != null) applyAutomatic(at, result)
+            finish()
+        }, {
+            pendingSend = false; punctuationState = "анализ недоступен"
+            if (automaticSnapshot() == at) finish()
+        })
+    }
+    private fun bindConversation() {
+        val info = currentInputEditorInfo
+        val permitted = isInputViewShown && info != null &&
+            TextFieldPolicy.canAutocorrect(info.inputType, info.imeOptions) &&
+            info.imeOptions and EditorInfo.IME_MASK_ACTION != EditorInfo.IME_ACTION_SEARCH &&
+            preferences.getBoolean("screen_context", false)
+        ConversationContext.begin(info?.packageName.orEmpty(), session, permitted)
+        if (permitted) ConversationAccessibilityService.refresh()
+        updateContextLabel()
+    }
+    private fun profileIdentity(): String = ConversationContext.snapshot()?.takeIf { it.title.isNotBlank() }?.key
+        ?: currentInputEditorInfo?.packageName.orEmpty() + ":manual"
+    private fun writingProfile(): WritingProfile {
+        val profile = WritingProfiles.read(preferences, profileIdentity())
+        return if (ConversationContext.snapshot()?.title?.isNotBlank() == true || manualContextSession == session) profile
+            else profile.copy(recipientGender = null, note = "", recipientName = "")
+    }
+    private fun conversationText(profile: WritingProfile): String =
+        ConversationContext.snapshot()?.modelContext(profile.note) ?: profile.note
+    private fun updateContextLabel() {
+        val context = ConversationContext.snapshot()
+        val manual = writingProfile()
+        contextButton?.text = when {
+            context?.title?.isNotBlank() == true -> "Кому: ${context.title}"
+            manualContextSession == session -> "Вручную"
+            else -> "Контекст"
+        }
+        contextButton?.tooltipText = context?.title?.takeIf { it.isNotBlank() } ?: manual.recipientName
+    }
+    private fun showConversation() {
+        cancelAnalysis(); cancelPreview()
+        val context = ConversationContext.snapshot()
+        val profile = WritingProfiles.read(preferences, profileIdentity())
+        contextText?.text = buildString {
+            append("Автоматический анализ: $punctuationState\n\n")
+            if (context != null && context.messages.isNotEmpty()) {
+                append("Видимый разговор: ${context.title.ifBlank { "имя недоступно" }}\n\n")
+                append(context.messages.joinToString("\n\n"))
+            } else append("История разговора сейчас недоступна. В настройках можно включить доступ к видимому чату или задать контекст вручную.")
+            if (profile.note.isNotBlank()) append("\n\nЗадано вручную:\n${profile.note}\nНажмите «Вручную», чтобы использовать это для текущего ввода.")
+        }
+        lettersPanel?.visibility = View.GONE; contextPanel?.visibility = View.VISIBLE
+    }
+    private fun openSettings() {
+        val title = ConversationContext.snapshot()?.title.orEmpty()
+        startActivity(Intent(this, KeyboardSettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .putExtra("profile_identity", profileIdentity()).putExtra("profile_title", title))
     }
 }

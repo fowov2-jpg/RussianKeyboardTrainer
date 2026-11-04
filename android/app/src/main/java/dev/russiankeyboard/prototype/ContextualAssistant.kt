@@ -96,7 +96,7 @@ class ContextualAssistant(
     }
 
     /** Two context-aware passes let adjacent misspellings inform each other. */
-    fun review(original: String): Review? {
+    fun review(original: String, conversation: String = "", profile: WritingProfile = WritingProfile()): Review? {
         if (original.isBlank() || original.length > 240) return null
         var updated = original
         repeat(2) {
@@ -111,7 +111,7 @@ class ContextualAssistant(
                 val possibleName = value.firstOrNull()?.isUpperCase() == true &&
                     value.drop(1).all { it.isLowerCase() } && prefix.isNotEmpty() && prefix.last() !in ".!?\n"
                 if (!possibleName && safeStart(updated, match.range.first) && safeEnd(updated, end)) {
-                    val left = context(result.toString())
+                    val left = context(conversation + "\n" + result.toString())
                     val right = context(updated.substring(end)).take(2)
                     val candidate = candidates(value, left, right).firstOrNull()
                     if (candidate != null && candidate != value) { value = candidate; changed++ }
@@ -121,17 +121,7 @@ class ContextualAssistant(
             result.append(updated, cursor, updated.length)
             if (changed > 0) updated = result.toString()
         }
-        // Only an explicit adjacent third-person subject establishes gender.
-        // "я/ты" and an addressee's gender are never guessed.
-        val agreement = Regex("(?iu)(?<![\\p{L}\\p{N}_@#/.-])(он|она|оно)((?:[ \\t]+(?:мне|тебе|нам|вам|ему|ей|им|уже|ещё|сегодня|вчера|тут|там|тоже|не|очень)){0,2}[ \\t]+)([а-яё]+)(?![\\p{L}\\p{N}_/-])")
-        updated = agreement.replace(updated) { match ->
-            val typed = match.groupValues[3]
-            val desired = when (match.groupValues[1].lowercase(locale)) { "она" -> "Fem"; "оно" -> "Neut"; else -> "Masc" }
-            val record = grammar[typed.lowercase(locale)]
-            val replacement = if (record != null && record.gender != desired && conventional(typed) &&
-                conventional(match.groupValues[1]) && safeStart(updated, match.range.first)) record.forms[desired] else null
-            if (replacement != null) match.groupValues[1] + match.groupValues[2] + restore(replacement, typed) else match.value
-        }
+        updated = automaticGrammar(updated, profile)
         // Existing conservative comma patterns are previewed in a full phrase.
         val comma = Regex("(?iu)(?<![\\p{L}\\p{N}_@#/.-])(думаю|знаю|понимаю|сказал|сказала)( +)(что)(?![\\p{L}\\p{N}_])")
         updated = comma.replace(updated) {
@@ -144,6 +134,24 @@ class ContextualAssistant(
         val changes = originalWords.zip(newWords).count { it.first != it.second } +
             kotlin.math.abs(originalWords.size - newWords.size) + if (updated.count { it == ',' } > original.count { it == ',' }) 1 else 0
         return Review(original, updated, maxOf(1, changes))
+    }
+
+    fun automaticGrammar(text: String, profile: WritingProfile): String {
+        // First/second person requires an explicitly configured profile. Quoted
+        // speech can refer to someone else, so it is never gender-adjusted here.
+        if (text.any { it in "«»\"“”" }) return text
+        val agreement = Regex("(?iu)(?<![\\p{L}\\p{N}_@#/.-])(он|она|оно|я|ты)((?:[ \\t]+(?:мне|тебе|нам|вам|ему|ей|им|уже|ещё|сегодня|вчера|тут|там|тоже|не|очень)){0,2}[ \\t]+)([а-яё]+)(?![\\p{L}\\p{N}_/-])")
+        return agreement.replace(text) { match ->
+            val typed = match.groupValues[3]
+            val desired = when (match.groupValues[1].lowercase(locale)) {
+                "она" -> "Fem"; "оно" -> "Neut"; "он" -> "Masc"
+                "я" -> profile.speakerGender; else -> profile.recipientGender
+            }
+            val record = grammar[typed.lowercase(locale)]
+            val replacement = if (desired != null && record != null && record.gender != desired && conventional(typed) &&
+                conventional(match.groupValues[1]) && safeStart(text, match.range.first)) record.forms[desired] else null
+            if (replacement != null) match.groupValues[1] + match.groupValues[2] + restore(replacement, typed) else match.value
+        }
     }
 
     companion object {

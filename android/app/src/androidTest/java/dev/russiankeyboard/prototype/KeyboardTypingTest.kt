@@ -16,6 +16,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.Before
+import org.junit.After
 import org.junit.runner.RunWith
 
 /**
@@ -24,6 +26,14 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class KeyboardTypingTest {
+    @Before fun isolateLegacyCases() {
+        ApplicationProvider.getApplicationContext<Context>().getSharedPreferences("keyboard", Context.MODE_PRIVATE)
+            .edit().putBoolean("automatic_writing", false).commit()
+    }
+    @After fun restoreAutomaticDefault() {
+        ApplicationProvider.getApplicationContext<Context>().getSharedPreferences("keyboard", Context.MODE_PRIVATE)
+            .edit().remove("automatic_writing").commit()
+    }
     @Test fun touchKeysAndSpaceApplyOneLocalCorrection() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
@@ -241,16 +251,43 @@ class KeyboardTypingTest {
             val apply = findKey("Применить исправления фразы", 8_000)
             assertNotNull("Phrase preview did not appear", apply)
             val proposed = findKey("Предпросмотр исправлений", 8_000)
-            assertEquals("Она работала вчера", proposed!!.text)
+            assertEquals("Она работала вчера.", proposed!!.text)
             apply!!.click()
             device.waitForIdle()
             scenario.onActivity { activity ->
-                assertEquals("Она работала вчера", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+                assertEquals("Она работала вчера.", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
             }
             findKey("Удалить", 8_000)!!.click()
             device.waitForIdle()
             scenario.onActivity { activity ->
                 assertEquals("Она работал вчера", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+
+            // Real idle analysis, no manual Review/Apply: the user's exact example.
+            app.getSharedPreferences("keyboard", Context.MODE_PRIVATE).edit().putBoolean("automatic_writing", true).commit()
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("привет как дела"); field.setSelection(field.length())
+            }
+            findKey("Пробел", 8_000)!!.click()
+            assertTrue("Automatic neural punctuation never reached the active editor", device.wait(
+                Until.hasObject(By.res(app.packageName, "demo_editor").text("Привет, как дела? ")), 20_000))
+            findKey("у", 8_000)!!.click()
+            assertTrue("Continuing a question left a stale provisional question mark", device.wait(
+                Until.hasObject(By.res(app.packageName, "demo_editor").text("Привет, как дела у")), 8_000))
+            findKey("Удалить", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("как дела у тебя"); field.setSelection(field.length())
+            }
+            findKey("Пробел", 8_000)!!.click()
+            assertTrue(device.wait(Until.hasObject(By.res(app.packageName, "demo_editor").text("Как дела у тебя? ")), 20_000))
+            findKey("Удалить", 8_000)!!.click()
+            assertTrue(device.wait(Until.hasObject(By.res(app.packageName, "demo_editor").text("как дела у тебя ")), 5_000))
+            // A cancelled correction must stay cancelled through the next idle pass.
+            android.os.SystemClock.sleep(1_600)
+            scenario.onActivity { activity ->
+                assertEquals("как дела у тебя ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
             }
         }
     }

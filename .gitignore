@@ -14,6 +14,7 @@ data/eval/
 .cache/lexicon/
 .cache/context/
 .cache/morphology/
+.cache/punctuation-python/
 reports/lexicon/
 android/.gradle/
 android/.kotlin/

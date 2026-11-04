@@ -33,6 +33,14 @@ def verify(report: Path, assets: Path, corpus: Path, apks: Path):
     for name,digest in context_manifest['sha256'].items():
         if hashlib.sha256((context_assets/name).read_bytes()).hexdigest()!=digest:
             raise ValueError('Context asset hash mismatch: '+name)
+    punctuation_assets = assets.parent / 'punctuation'
+    punctuation_manifest = json.loads((punctuation_assets / 'manifest.json').read_text(encoding='utf-8'))
+    if (punctuation_manifest['license'] != 'MIT' or punctuation_manifest['model_bytes'] != 29259673 or
+            punctuation_manifest['sha256']['model.bin'] != 'b105da023474d98aa13ba18953ae67b04b17bd0595034bc06030c17536893933'):
+        raise ValueError('Unexpected punctuation model provenance')
+    for name, digest in punctuation_manifest['sha256'].items():
+        if hashlib.sha256((punctuation_assets / name).read_bytes()).hexdigest() != digest:
+            raise ValueError('Punctuation asset hash mismatch: ' + name)
     apk_files = sorted(apks.glob("*.apk"))
     if not apk_files:
         raise ValueError("No APKs to verify")
@@ -59,7 +67,16 @@ def verify(report: Path, assets: Path, corpus: Path, apks: Path):
             for name in ('NOTICE.txt','manifest.json','UD-LICENSE.txt','UD-README.md','OpenCorpora-NOTICE.txt','DAWG-Python-LICENSE.txt','Tatoeba-AUTHORS.txt'):
                 if archive.read('assets/context/'+name)!=(context_assets/name).read_bytes():
                     raise ValueError('Context attribution/manifest mismatch: '+name)
-            if any(any(fixture in name for fixture in ('lexicon_corpus','context_holdout','morphology_parity')) for name in archive.namelist()):
+            for name, digest in punctuation_manifest['sha256'].items():
+                key = 'assets/punctuation/' + name
+                if name == 'model.bin' and archive.getinfo(key).compress_type != zipfile.ZIP_STORED:
+                    raise ValueError('Punctuation weights must be uncompressed for mmap')
+                if hashlib.sha256(archive.read(key)).hexdigest() != digest:
+                    raise ValueError('Packaged punctuation hash mismatch: ' + key)
+            for name in ('NOTICE.txt', 'manifest.json'):
+                if archive.read('assets/punctuation/' + name) != (punctuation_assets / name).read_bytes():
+                    raise ValueError('Punctuation attribution mismatch: ' + name)
+            if any(any(fixture in name for fixture in ('lexicon_corpus','context_holdout','morphology_parity','punctuation_reference')) for name in archive.namelist()):
                 raise ValueError(f"Test corpus accidentally shipped in {apk}")
         print(f"Packaged lexicon OK: {apk.name}")
     return runtime

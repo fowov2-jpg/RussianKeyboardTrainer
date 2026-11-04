@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="conversation_context_name">Контекст активного чата</string>
+    <string name="conversation_context_description">Передаёт клавиатуре доступный заголовок и видимые сообщения активного разговора, только пока открыта клавиатура в обычном текстовом поле. Пароли и редактируемые поля исключены. Сообщения остаются в памяти устройства и не сохраняются. Сервис не нажимает кнопки и не отправляет сообщения.</string>
     <string name="app_name">Русская клавиатура (прототип)</string>
     <string name="ime_name">Русская клавиатура</string>
 </resources>
