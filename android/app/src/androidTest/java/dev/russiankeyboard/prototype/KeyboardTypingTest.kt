@@ -86,31 +86,33 @@ class KeyboardTypingTest {
                 device.wait(Until.findObject(By.desc(key).pkg(app.packageName)), timeoutMs)
                     ?: device.wait(Until.findObject(By.text(key).pkg(app.packageName)), 1_500)
 
-            var space: UiObject2? = null
-            for (attempt in 0..2) {
-                if (attempt == 0) {
-                    device.waitForIdle()
-                    // Tap only once. On retry the original UiObject may have
-                    // stale screen coordinates after IME resize; tapping it
-                    // again can hit a letter instead of the editor.
-                    val currentEditor = device.wait(
-                        Until.findObject(By.res(app.packageName, "demo_editor")), 5_000)
-                    assertNotNull("Editor vanished before initial focus tap", currentEditor)
-                    currentEditor!!.click()
-                }
-                scenario.onActivity { activity ->
-                    val field = activity.findViewById<EditText>(R.id.demo_editor)
-                    field.requestFocus()
-                    field.post {
-                        inputMethod.showSoftInput(
-                            field,
-                            if (attempt == 2) InputMethodManager.SHOW_FORCED
-                            else InputMethodManager.SHOW_IMPLICIT
-                        )
+            // onActivity may already have made the IME visible. Never tap an
+            // editor's stale bounds when the keyboard is on-screen: on a small
+            // emulator that tap can land on a character (observed stray "г").
+            var space: UiObject2? = findKey("Пробел", 5_000)
+            if (space == null) {
+                for (attempt in 0..2) {
+                    if (attempt == 0) {
+                        device.waitForIdle()
+                        val currentEditor = device.wait(
+                            Until.findObject(By.res(app.packageName, "demo_editor")), 5_000)
+                        assertNotNull("Editor vanished before initial focus tap", currentEditor)
+                        currentEditor!!.click()
                     }
+                    scenario.onActivity { activity ->
+                        val field = activity.findViewById<EditText>(R.id.demo_editor)
+                        field.requestFocus()
+                        field.post {
+                            inputMethod.showSoftInput(
+                                field,
+                                if (attempt == 2) InputMethodManager.SHOW_FORCED
+                                else InputMethodManager.SHOW_IMPLICIT
+                            )
+                        }
+                    }
+                    space = findKey("Пробел")
+                    if (space != null) break
                 }
-                space = findKey("Пробел")
-                if (space != null) break
             }
             val currentIme = device.executeShellCommand("settings get secure default_input_method").trim()
             assertNotNull(
