@@ -49,7 +49,8 @@ class KeyboardTypingTest {
                 field.isFocusableInTouchMode = true
                 field.requestFocus()
                 activity.window.setSoftInputMode(
-                    android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+                    android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or
+                        android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
                 )
             }
 
@@ -87,7 +88,16 @@ class KeyboardTypingTest {
 
             var space: UiObject2? = null
             for (attempt in 0..2) {
-                editor!!.click()
+                if (attempt == 0) {
+                    device.waitForIdle()
+                    // Tap only once. On retry the original UiObject may have
+                    // stale screen coordinates after IME resize; tapping it
+                    // again can hit a letter instead of the editor.
+                    val currentEditor = device.wait(
+                        Until.findObject(By.res(app.packageName, "demo_editor")), 5_000)
+                    assertNotNull("Editor vanished before initial focus tap", currentEditor)
+                    currentEditor!!.click()
+                }
                 scenario.onActivity { activity ->
                     val field = activity.findViewById<EditText>(R.id.demo_editor)
                     field.requestFocus()
@@ -108,6 +118,12 @@ class KeyboardTypingTest {
                 space
             )
             assertNotNull("Russian letter ё must be available on the keyboard", findKey("ё"))
+            scenario.onActivity { activity ->
+                assertEquals(
+                    "Editor unexpectedly received a character before deliberate key taps",
+                    "", activity.findViewById<EditText>(R.id.demo_editor).text.toString()
+                )
+            }
 
             for (key in listOf("с", "е", "в", "о", "д", "н", "я", "Пробел")) {
                 val button = findKey(key, 8_000)

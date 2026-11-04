@@ -10,10 +10,14 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.view.WindowManager
 
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // A weighted editor must shrink above the IME rather than remain
+        // occluded by its keys when Android changes the visible window height.
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         val density = resources.displayMetrics.density
         val pad = (16 * density).toInt()
         val column = LinearLayout(this).apply {
