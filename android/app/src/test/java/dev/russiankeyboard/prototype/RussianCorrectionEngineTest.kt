@@ -82,6 +82,24 @@ class RussianCorrectionEngineTest {
         assertEquals("ДУМАЮ, ЧТО ", engine.onSpace("ДУМАЮ ЧТО")?.replacementWithSpace)
     }
 
+    @Test fun prefixLookupNarrowsCandidatesWithoutChangingText() {
+        assertTrue(engine.suggestForPrefix("п").contains("привет"))
+        assertTrue(engine.suggestForPrefix("пр").contains("привет"))
+        assertTrue(engine.suggestForPrefix("при").contains("привет"))
+        assertEquals(listOf("привет"), engine.suggestForPrefix("привет"))
+        assertTrue(engine.suggestForPrefix("приыкет").isEmpty())
+    }
+
+    @Test fun prefixLookupProtectsShortWordsAndInvalidInputs() {
+        assertTrue(engine.suggestForPrefix("как").contains("как"))
+        assertTrue(engine.suggestForPrefix("не").contains("не"))
+        assertTrue(engine.suggestForPrefix("что").contains("что"))
+        assertTrue(engine.suggestForPrefix("ка").isNotEmpty())
+        assertTrue(engine.suggestForPrefix("https://x").isEmpty())
+        assertTrue(engine.suggestForPrefix("123").isEmpty())
+        assertTrue(engine.suggestForPrefix("пр", 0).isEmpty())
+    }
+
     @Test fun neverChangesSensitiveField() {
         assertNull(engine.onSpace("Я севодня", isSensitiveField = true))
         assertNull(engine.onSpace("Я думаю что", isSensitiveField = true))
