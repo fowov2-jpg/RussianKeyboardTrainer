@@ -4,10 +4,12 @@ on:
     branches: [main]
     paths:
       - 'android/**'
+      - 'scripts/ci_verify_android_corpus.py'
       - '.github/workflows/android-build.yml'
   pull_request:
     paths:
       - 'android/**'
+      - 'scripts/ci_verify_android_corpus.py'
       - '.github/workflows/android-build.yml'
   workflow_dispatch:
 concurrency:
@@ -38,6 +40,11 @@ jobs:
       # This detects Kotlin errors in androidTest before slow AVD workflows run.
       - name: Unit tests, Android lint, APK and instrumentation compile
         run: gradle -p android --no-daemon --max-workers=2 testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
+      - name: Require 400+ distinct word/sentence regression tests
+        run: |
+          python3 scripts/ci_verify_android_corpus.py \
+            --reports android/app/build/test-results/testDebugUnitTest \
+            --minimum 400 --summary "$GITHUB_STEP_SUMMARY"
       - name: Upload unit and lint reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -72,6 +79,12 @@ jobs:
             # The IME service's BIND_INPUT_METHOD is a service-level protection,
             # not an app-requested permission, so it must not appear above.
           done
+      - name: Record APK SHA-256 checksums
+        shell: bash
+        run: |
+          cd android/app/build/outputs/apk/debug
+          sha256sum ./*.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
       - name: Report per-ABI APK sizes
         run: |
           echo '### Debug APK sizes by CPU architecture' >> "$GITHUB_STEP_SUMMARY"
@@ -80,6 +93,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: russian-keyboard-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/debug/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 7
