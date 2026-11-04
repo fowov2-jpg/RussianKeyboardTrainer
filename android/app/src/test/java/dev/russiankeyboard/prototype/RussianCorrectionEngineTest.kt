@@ -83,8 +83,8 @@ class RussianCorrectionEngineTest {
     }
 
     @Test fun prefixLookupNarrowsCandidatesWithoutChangingText() {
-        assertTrue(engine.suggestForPrefix("п").contains("привет"))
-        assertTrue(engine.suggestForPrefix("пр").contains("привет"))
+        assertTrue(engine.suggestForPrefix("п", limit = 8).contains("привет"))
+        assertTrue(engine.suggestForPrefix("пр", limit = 8).contains("привет"))
         assertTrue(engine.suggestForPrefix("при").contains("привет"))
         assertEquals(listOf("привет"), engine.suggestForPrefix("привет"))
         assertTrue(engine.suggestForPrefix("приыкет").isEmpty())
