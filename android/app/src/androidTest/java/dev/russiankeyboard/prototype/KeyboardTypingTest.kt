@@ -85,6 +85,7 @@ class KeyboardTypingTest {
                 device.wait(Until.findObject(By.desc(key).pkg(app.packageName)), timeoutMs)
                     ?: device.wait(Until.findObject(By.text(key).pkg(app.packageName)), 1_500)
 
+            assertNotNull("Russian letter ё must be available on the keyboard", findKey("ё"))
             var space: UiObject2? = null
             for (attempt in 0..2) {
                 editor!!.click()

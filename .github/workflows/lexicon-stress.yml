@@ -1,0 +1,37 @@
+name: lexicon-stress
+on:
+  pull_request:
+    paths:
+      - 'scripts/build_russian_typos.py'
+      - 'tests/test_russian_typo_generator.py'
+      - 'docs/RUSSIAN_LEXICON_QA_RU.md'
+      - '.github/workflows/lexicon-stress.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Independent generator unit tests
+        run: python -m unittest discover -s tests -p test_russian_typo_generator.py -v
+      - name: Build 100k licensed words and 1m unique synthetic errors
+        run: python scripts/build_russian_typos.py --out reports/lexicon
+      - name: Fail closed on counts
+        run: |
+          python -c "import json; x=json.load(open('reports/lexicon/metrics.json')); assert x['wordforms']==100000 and x['unique_typos']>=1000000 and x['distinct_pairs']>=1000000, x"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: russian-lexicon-100k-million-typos
+          path: |
+            reports/lexicon/metrics.json
+            reports/lexicon/words-100000.txt
+            reports/lexicon/typos-1000000.tsv.gz
+            docs/RUSSIAN_LEXICON_QA_RU.md
+          if-no-files-found: error
+          retention-days: 7

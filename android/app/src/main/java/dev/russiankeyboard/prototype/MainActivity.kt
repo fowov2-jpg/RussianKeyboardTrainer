@@ -15,18 +15,20 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val density = resources.displayMetrics.density
-        val pad = (20 * density).toInt()
+        val pad = (16 * density).toInt()
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad, pad, pad)
         }
         column.addView(TextView(this).apply {
-            text = "Русская клавиатура — ранний офлайн-прототип.\n\n" +
-                "Есть русская раскладка, пробел, удаление, смена регистра, " +
-                "несколько очевидных автозамен и демонстрационное правило запятой.\n\n" +
-                "Нейросетевые модели и контекст собеседника пока не подключены. " +
-                "Вводимый текст никуда не отправляется."
-            textSize = 18f
+            text = "Русская клавиатура"
+            textSize = 22f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        })
+        column.addView(TextView(this).apply {
+            text = "Офлайн · Без передачи текста · Тестовая версия 1.0.0-rc1"
+            textSize = 13f
+            setPadding(0, (4 * density).toInt(), 0, (8 * density).toInt())
         })
         column.addView(Button(this).apply {
             text = "1. Включить клавиатуру"
@@ -41,13 +43,22 @@ class MainActivity : Activity() {
                     .showInputMethodPicker()
             }
         })
+        column.addView(TextView(this).apply {
+            text = "Попробуй: превет → привет после пробела. Backspace отменяет " +
+                "исправление. Исправление целых предложений ещё разрабатывается."
+            textSize = 13f
+            setPadding(0, (8 * density).toInt(), 0, (4 * density).toInt())
+        })
         column.addView(EditText(this).apply {
             id = R.id.demo_editor
-            hint = "Набери: Я севодня"
+            hint = "Напиши фразу здесь…"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            minLines = 3
-            textSize = 17f
-        })
+            minLines = 4
+            gravity = android.view.Gravity.TOP
+            textSize = 18f
+        }, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+        ))
         setContentView(column)
     }
 }

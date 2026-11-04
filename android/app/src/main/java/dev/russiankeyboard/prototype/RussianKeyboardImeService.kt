@@ -26,14 +26,16 @@ class RussianKeyboardImeService : InputMethodService() {
         letterButtons.clear()
         val keyboard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(3), dp(4), dp(3), dp(6))
+            // The navigation gesture inset can overlay the last IME row on some phones.
+            // Reserve extra touch space instead of letting the nav bar cover keys.
+            setPadding(dp(3), dp(4), dp(3), dp(30))
             setBackgroundColor(Color.rgb(218, 223, 231))
         }
 
         addRow(keyboard, listOf("й", "ц", "у", "к", "е", "н", "г", "ш", "щ", "з", "х", "ъ"))
         addRow(keyboard, listOf("ф", "ы", "в", "а", "п", "р", "о", "л", "д", "ж", "э"))
         addRow(keyboard, listOf("⇧", "я", "ч", "с", "м", "и", "т", "ь", "б", "ю", "⌫"))
-        addRow(keyboard, listOf(",", "Пробел", ".", "↵"))
+        addRow(keyboard, listOf("ё", ",", "Пробел", ".", "↵"))
         return keyboard
     }
 
@@ -62,7 +64,7 @@ class RussianKeyboardImeService : InputMethodService() {
                 letterButtons.add(key to label)
             }
             val weight = if (label == "Пробел") 5f else 1f
-            row.addView(key, LinearLayout.LayoutParams(0, dp(49), weight).apply {
+            row.addView(key, LinearLayout.LayoutParams(0, dp(52), weight).apply {
                 setMargins(dp(1), dp(1), dp(1), dp(1))
             })
         }
