@@ -102,6 +102,22 @@ class KeyboardTypingTest {
             scenario.onActivity { activity ->
                 assertEquals("севодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
             }
+
+            // A caret inside a word must not autocorrect the preceding prefix.
+            // Pressing space should only split the word at the caret.
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("севоднятест")
+                field.setSelection("севодня".length)
+            }
+            val midWordSpace = findKey("Пробел", 8_000)
+            assertNotNull("Space key missing in middle-of-word regression", midWordSpace)
+            midWordSpace!!.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("севодня тест",
+                    activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
         }
     }
 }

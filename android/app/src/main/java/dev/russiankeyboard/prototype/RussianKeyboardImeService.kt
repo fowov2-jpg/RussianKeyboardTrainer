@@ -113,6 +113,14 @@ class RussianKeyboardImeService : InputMethodService() {
             connection.commitText(" ", 1)
             return
         }
+        // The prefix alone cannot establish a word boundary if the cursor
+        // sits inside a word. Never rewrite a partial word before the caret.
+        val after = connection.getTextAfterCursor(1, 0)?.toString()
+        if (after == null || (after.isNotEmpty() && (after[0].isLetterOrDigit() ||
+                    after[0] == '_' || after[0] == '-'))) {
+            connection.commitText(" ", 1)
+            return
+        }
         val before = connection.getTextBeforeCursor(96, 0)?.toString().orEmpty()
         val edit = engine.onSpace(before)
         if (edit == null || !before.endsWith(edit.expectedSuffix)) {
