@@ -40,19 +40,24 @@ class KeyboardSettingsActivity : Activity() {
         toggle("autocorrect", "Исправлять явные опечатки")
         toggle("automatic_writing", "Автоматически исправлять фразу и пунктуацию")
         toggle("suggestions", "Контекстные подсказки и продолжения слов")
-        toggle("screen_context", "Учитывать видимый чат при наборе", false)
-        accessStatus = TextView(this).apply { textSize = 14f }
-        column.addView(accessStatus)
-        column.addView(Button(this).apply {
-            text = "Доступ Android к контексту"; isAllCaps = false
-            setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-        })
+        val screenContext = resources.getBoolean(R.bool.screen_context_supported)
+        if (screenContext) {
+            toggle("screen_context", "Учитывать видимый чат при наборе", false)
+            accessStatus = TextView(this).apply { textSize = 14f }
+            column.addView(accessStatus)
+            column.addView(Button(this).apply {
+                text = "Доступ Android к контексту"; isAllCaps = false
+                setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            })
+        }
         column.addView(TextView(this).apply {
             text = "Пунктуация исправляется автоматически во время набора; Backspace отменяет замену. " +
                 "При продолжении фразы предварительный знак вопроса снимается.\n\n" +
-                "Контекст доступного чата используется только при открытой клавиатуре. " +
+                if (screenContext) "Контекст доступного чата используется только при открытой клавиатуре. " +
                 "Пароли и поля ввода исключены. Видимые сообщения не сохраняются и никуда не отправляются. " +
                 "Если приложение скрывает переписку от Android, задайте контекст вручную."
+                else "Эта версия не читает экран и сообщения собеседника. " +
+                    "Исправляется текст, который вы набираете. Собеседника и заметку о разговоре можно задать вручную ниже."
             textSize = 15f
         })
         fun gender(label: String, value: String?): Spinner {

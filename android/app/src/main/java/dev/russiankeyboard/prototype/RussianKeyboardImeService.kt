@@ -751,7 +751,7 @@ class RussianKeyboardImeService : InputMethodService() {
     }
     private fun bindConversation() {
         val info = currentInputEditorInfo
-        val permitted = isInputViewShown && info != null &&
+        val permitted = resources.getBoolean(R.bool.screen_context_supported) && isInputViewShown && info != null &&
             TextFieldPolicy.canAutocorrect(info.inputType, info.imeOptions) &&
             info.imeOptions and EditorInfo.IME_MASK_ACTION != EditorInfo.IME_ACTION_SEARCH &&
             preferences.getBoolean("screen_context", false)
@@ -787,7 +787,9 @@ class RussianKeyboardImeService : InputMethodService() {
             if (context != null && context.messages.isNotEmpty()) {
                 append("Видимый разговор: ${context.title.ifBlank { "имя недоступно" }}\n\n")
                 append(context.messages.joinToString("\n\n"))
-            } else append("История разговора сейчас недоступна. В настройках можно включить доступ к видимому чату или задать контекст вручную.")
+            } else if (resources.getBoolean(R.bool.screen_context_supported)) {
+                append("История разговора сейчас недоступна. В настройках можно включить доступ к видимому чату или задать контекст вручную.")
+            } else append("Эта версия не читает экран и сообщения собеседника. Контекст можно задать вручную в настройках.")
             if (profile.note.isNotBlank()) append("\n\nЗадано вручную:\n${profile.note}\nНажмите «Вручную», чтобы использовать это для текущего ввода.")
         }
         lettersPanel?.visibility = View.GONE; contextPanel?.visibility = View.VISIBLE

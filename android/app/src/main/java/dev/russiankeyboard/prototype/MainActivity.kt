@@ -31,7 +31,7 @@ class MainActivity : Activity() {
             setTypeface(null, android.graphics.Typeface.BOLD)
         })
         column.addView(TextView(this).apply {
-            text = "Исправление при наборе · Офлайн · 1.0.0-rc7"
+            text = "Исправление при наборе · Офлайн · " + packageManager.getPackageInfo(packageName, 0).versionName
             textSize = 13f
             setPadding(0, (4 * density).toInt(), 0, (8 * density).toInt())
         })
@@ -50,7 +50,8 @@ class MainActivity : Activity() {
         })
         column.addView(TextView(this).apply {
             text = "Пиши «привет как дела» — клавиатура исправляет во время набора. Backspace отменяет замену. " +
-                "Контекст видимого чата включается в ⚙ → доступ Android."
+                if (resources.getBoolean(R.bool.screen_context_supported)) "Контекст видимого чата включается в ⚙ → доступ Android."
+                else "Эта версия не читает сообщения чата. Контекст можно задать вручную в ⚙."
             textSize = 13f
             setPadding(0, (8 * density).toInt(), 0, (4 * density).toInt())
         })

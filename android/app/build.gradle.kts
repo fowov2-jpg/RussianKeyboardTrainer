@@ -22,9 +22,21 @@ android {
         applicationId = "dev.russiankeyboard.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.0.0-rc8"
+        versionCode = 10
+        versionName = "1.0.0-rc9"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        create("standalone") {
+            initWith(getByName("debug"))
+            // A separate distribution with no accessibility service. Keep the
+            // existing local signing identity so data survives an update.
+            isDebuggable = false
+            isJniDebuggable = false
+            versionNameSuffix = "-local"
+            matchingFallbacks += listOf("debug")
+        }
     }
 
     compileOptions {
