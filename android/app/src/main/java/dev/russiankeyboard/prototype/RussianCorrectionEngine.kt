@@ -5,7 +5,8 @@ import java.util.Locale
 /** Fast deterministic fallback; no neural inference or personal data collection. */
 class RussianCorrectionEngine(
     private val morphology: () -> MorphologyDictionary? = { null },
-    private val lexicon: () -> RussianLexicon? = { null }
+    private val lexicon: () -> RussianLexicon? = { null },
+    private val common: () -> RussianLexicon? = { null }
 ) {
     enum class Reason { TYPO, COMMA, COMPLETION, PREDICTION, PHRASE }
     data class Edit(
@@ -13,7 +14,7 @@ class RussianCorrectionEngine(
         val replacementWithSpace: String,
         val reason: Reason
     )
-    data class Suggestion(val edit: Edit, val automatic: Boolean)
+    data class Suggestion(val edit: Edit, val automatic: Boolean, val requiresGrowingEvidence: Boolean = false)
 
     private val safeTypos = mapOf(
         "севодня" to "сегодня",
@@ -70,19 +71,32 @@ class RussianCorrectionEngine(
                 !hasConventionalCasing(typed)) return emptyList()
             val curated = safeTypos[normalized]
             val candidate = lexicon()?.lookup(normalized)
-            val choices = mutableListOf<Pair<String, Boolean>>()
-            if (curated != null) choices.add(curated to true)
+            val frequent = common()?.lookup(normalized)
+            val prefix = textBeforeCursor.substring(0, wordMatch.range.first)
+            val trimmed = prefix.trimEnd()
+            val sentenceStart = trimmed.isEmpty() || trimmed.last() in ".!?…" || prefix.substringAfterLast('\n').isBlank()
+            val possibleName = typed.first().isUpperCase() && typed.drop(1).all { it.isLowerCase() } && !sentenceStart
+            val shortAcronym = typed.length <= 4 && typed.all { it.isUpperCase() }
+            val safeFrequent = !possibleName && !shortAcronym
+            val choices = mutableListOf<Triple<String, Boolean, Boolean>>()
+            if (curated != null) choices.add(Triple(curated, true, false))
             if (candidate != null && candidate.word != curated) {
-                choices.add(candidate.word to (curated == null && candidate.automatic))
+                val upgrade = safeFrequent && frequent?.word == candidate.word && frequent.automatic
+                val veto = frequent != null && !frequent.automatic
+                choices.add(Triple(candidate.word, curated == null && !veto && (candidate.automatic || upgrade), upgrade))
             }
-            return choices.map { (corrected, automatic) ->
+            if (frequent != null && frequent.word != curated && frequent.word != candidate?.word) {
+                // A conflicting legacy candidate remains ambiguous, regardless of frequency.
+                choices.add(Triple(frequent.word, safeFrequent && curated == null && candidate == null && frequent.automatic, true))
+            }
+            return choices.map { (corrected, automatic, evidence) ->
                 val restored = when {
                     typed.all { it.isUpperCase() } -> corrected.uppercase(Locale.forLanguageTag("ru"))
                     typed.first().isUpperCase() ->
                         corrected.replaceFirstChar { it.uppercase(Locale.forLanguageTag("ru")) }
                     else -> corrected
                 }
-                Suggestion(Edit(typed, "$restored ", Reason.TYPO), automatic)
+                Suggestion(Edit(typed, "$restored ", Reason.TYPO), automatic, evidence)
             }
         }
         return emptyList()
@@ -90,6 +104,9 @@ class RussianCorrectionEngine(
 
     fun suggest(textBeforeCursor: String, isSensitiveField: Boolean = false): Suggestion? =
         suggestions(textBeforeCursor, isSensitiveField).firstOrNull()
+
+    internal fun hasAmbiguousFrequentCandidate(word: String): Boolean =
+        safeTypos[word.lowercase(Locale.ROOT)] == null && common()?.lookup(word.lowercase(Locale.ROOT))?.automatic == false
 
     /** Runs only on space. Ambiguous/rare/two-edit candidates need a tap. */
     fun onSpace(textBeforeCursor: String, isSensitiveField: Boolean = false): Edit? {

@@ -22,8 +22,8 @@ android {
         applicationId = "dev.russiankeyboard.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.0.0-rc6"
+        versionCode = 8
+        versionName = "1.0.0-rc7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -51,6 +51,7 @@ android {
             it.inputs.file(file("src/main/assets/lexicon/russian.bin"))
                 .withPropertyName("russianLexicon")
             it.systemProperty("rsk.context", file("src/main/assets/context").absolutePath)
+            it.systemProperty("rsk.common", file("src/main/assets/common").absolutePath)
             it.systemProperty("rsk.contextReport", layout.buildDirectory.file("reports/context-runtime.json").get().asFile.absolutePath)
             it.inputs.dir(file("src/main/assets/context")).withPropertyName("contextAssets")
             it.systemProperty("rsk.punctuation", file("src/main/assets/punctuation").absolutePath)

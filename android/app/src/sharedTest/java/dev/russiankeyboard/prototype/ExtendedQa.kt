@@ -64,6 +64,7 @@ class ExtendedWordQa(private val engine: RussianCorrectionEngine, private val mo
             "valid_morphology_input" to validInput, "undo_restores_raw" to (restored == case.input),
             "contract_passed" to contract, "exact_gold" to (shown == case.expected),
             "boundary_exact_gold" to (boundary == case.expected), "kept" to (shown == case.input),
+            "frequency_count" to Regex("(?:^|;)count=(\\d+)").find(case.provenance)?.groupValues?.get(1)?.toLong(),
             "elapsed_ns" to elapsed, "provenance" to case.provenance)
     }
 }
@@ -100,11 +101,15 @@ object ExtendedPhraseQa {
 class ExtendedQaReport(private val scope: String) {
     val rows = mutableListOf<Map<String, Any?>>()
     fun summary(): Map<String, Any?> {
-        val groups = rows.groupBy { it["kind"] as String }.mapValues { (_, cases) ->
+        val groups = rows.groupBy { it["kind"] as String }.mapValues { (kind, cases) ->
+            val weighted = cases.filter { it["frequency_count"] is Long }
+            val weight = weighted.sumOf { it["frequency_count"] as Long }
             linkedMapOf("cases" to cases.size, "contract_failures" to cases.count { it["contract_passed"] != true },
                 "exact_gold" to cases.count { it["exact_gold"] == true }, "kept" to cases.count { it["kept"] == true },
                 "boundary_exact_gold" to cases.count { it["boundary_exact_gold"] == true },
-                "valid_morphology_inputs" to cases.count { it["valid_morphology_input"] == true })
+                "valid_morphology_inputs" to cases.count { it["valid_morphology_input"] == true },
+                "other_replacement" to if (kind == "typo") cases.count { it["kept"] != true && it["exact_gold"] != true } else 0,
+                "frequency_weighted_exact" to if (weight == 0L) null else weighted.filter { it["exact_gold"] == true }.sumOf { it["frequency_count"] as Long }.toDouble() / weight)
         }
         val restored = rows.filter { it["kind"] == "restore" }
         fun sum(key: String) = restored.sumOf { (it[key] as? Int) ?: 0 }

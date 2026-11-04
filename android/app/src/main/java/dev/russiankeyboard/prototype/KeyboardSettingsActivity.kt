@@ -118,7 +118,7 @@ class KeyboardSettingsActivity : Activity() {
         column.addView(Button(this).apply {
             text = "Источники словаря"; isAllCaps = false
             setOnClickListener {
-                val notice = listOf("lexicon/NOTICE.txt", "context/NOTICE.txt", "context/OpenCorpora-NOTICE.txt", "punctuation/NOTICE.txt").joinToString("\n\n") { name ->
+                val notice = listOf("lexicon/NOTICE.txt", "common/NOTICE.txt", "context/NOTICE.txt", "context/OpenCorpora-NOTICE.txt", "punctuation/NOTICE.txt").joinToString("\n\n") { name ->
                     assets.open(name).bufferedReader().use { it.readText() }
                 }
                 android.app.AlertDialog.Builder(this@KeyboardSettingsActivity)

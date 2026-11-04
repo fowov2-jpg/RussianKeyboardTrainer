@@ -31,7 +31,7 @@ class MainActivity : Activity() {
             setTypeface(null, android.graphics.Typeface.BOLD)
         })
         column.addView(TextView(this).apply {
-            text = "Исправление при наборе · Офлайн · 1.0.0-rc6"
+            text = "Исправление при наборе · Офлайн · 1.0.0-rc7"
             textSize = 13f
             setPadding(0, (4 * density).toInt(), 0, (8 * density).toInt())
         })

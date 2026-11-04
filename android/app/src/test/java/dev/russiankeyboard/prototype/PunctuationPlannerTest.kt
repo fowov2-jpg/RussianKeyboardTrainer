@@ -86,6 +86,7 @@ class PunctuationPlannerTest {
         val name = "я вижу анну"
         val nameScores = listOf(PunctuationPlanner.Prediction(10, .99, .98, 0, .99),
             PunctuationPlanner.Prediction(10, .99, .98, 1, .99), PunctuationPlanner.Prediction(10, .99, .98, 0, .99))
-        assertEquals("Я вижу Анну", PunctuationPlanner.plan(name, tokenizer.encode(name), nameScores, PunctuationPlanner.Mode.STREAMING)?.text)
+        assertEquals("Я вижу Анну", PunctuationPlanner.plan(name, tokenizer.encode(name), nameScores, PunctuationPlanner.Mode.FINALIZE)?.text)
+        assertEquals("Я вижу анну", PunctuationPlanner.plan(name, tokenizer.encode(name), nameScores, PunctuationPlanner.Mode.STREAMING)?.text)
     }
 }

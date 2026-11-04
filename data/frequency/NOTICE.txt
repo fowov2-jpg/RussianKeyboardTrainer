@@ -1,0 +1,12 @@
+Russian word frequencies from hermitdave/FrequencyWords, content/2018/ru/ru_50k.txt.
+Author: Hermit Dave. Contents derived from tokenized OpenSubtitles dialogue data.
+Contents license: CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0/
+The repository's MIT LICENSE applies to its code, NOT these frequency contents.
+Pinned revision: f8a65e6ddc17e0baa2e366a909986798d8dbe55b
+Source SHA-256: 6095f507cc167488ec66ada5a85ac50433503a08ad24a07c6eabdf54352c4e7f
+Source: https://github.com/hermitdave/FrequencyWords/blob/f8a65e6ddc17e0baa2e366a909986798d8dbe55b/content/2018/ru/ru_50k.txt
+Upstream format/license statement: FrequencyWords-README.md.
+Derived indices, keyboard errors, word validation and QA selection: this project.
+This is a public subtitle-dialogue proxy, not private messages or messenger telemetry.
+chat-scenarios.txt: 100 controlled household examples authored for this project,
+not observed user-frequency statistics. Tatoeba phrases are attributed separately.

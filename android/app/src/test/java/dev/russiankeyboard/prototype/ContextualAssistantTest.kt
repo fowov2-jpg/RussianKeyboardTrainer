@@ -68,6 +68,15 @@ class ContextualAssistantTest {
         assertEquals("Ты работала", assistant.automaticGrammar("Ты работал", WritingProfile(recipientGender = "Fem")))
         assertEquals("«Я работал»", assistant.automaticGrammar("«Я работал»", WritingProfile(speakerGender = "Fem")))
     }
+    @Test fun streamingAgreementDoesNotConsumeTheNextLetterOfAnUnfinishedVerb() {
+        val engine=AutomaticWritingEngine(RussianCorrectionEngine(),assistant,{_,_,_,_->null})
+        val profile=WritingProfile(speakerGender="Fem")
+        val pending=engine.analyze("Я работал","",profile,PunctuationPlanner.Mode.STREAMING)!!
+        assertEquals("Я работал",pending.replacement)
+        assertEquals("Я работала",pending.finalizedReplacement)
+        assertNull(engine.analyze("Я работала","",profile,PunctuationPlanner.Mode.STREAMING))
+        assertEquals("Я работала ",engine.analyze("Я работал ","",profile,PunctuationPlanner.Mode.STREAMING)?.replacement)
+    }
 
     @Test fun evaluateOnSentenceHoldoutAndPreviouslyUnseenErrors() {
         val engine = RussianCorrectionEngine(morphology = { morphology }, lexicon = { lexicon })

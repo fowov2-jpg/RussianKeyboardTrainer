@@ -35,6 +35,12 @@ def verify(report: Path, assets: Path, corpus: Path, apks: Path):
         if hashlib.sha256((context_assets/name).read_bytes()).hexdigest()!=digest:
             raise ValueError('Context asset hash mismatch: '+name)
     punctuation_assets = assets.parent / 'punctuation'
+    common_assets = assets.parent / 'common'
+    common_manifest = json.loads((common_assets / 'manifest.json').read_text(encoding='utf-8'))
+    if common_manifest['word_count'] != 5000 or common_manifest['automatic_candidates'] < 100000:
+        raise ValueError('Frequent dialogue index coverage missing')
+    if hashlib.sha256((common_assets / 'russian.bin').read_bytes()).hexdigest() != common_manifest['sha256']:
+        raise ValueError('Frequent dialogue index source hash mismatch')
     punctuation_manifest = json.loads((punctuation_assets / 'manifest.json').read_text(encoding='utf-8'))
     if (punctuation_manifest['license'] != 'MIT' or punctuation_manifest['model_bytes'] != 29259673 or
             punctuation_manifest['sha256']['model.bin'] != 'b105da023474d98aa13ba18953ae67b04b17bd0595034bc06030c17536893933'):
@@ -50,6 +56,9 @@ def verify(report: Path, assets: Path, corpus: Path, apks: Path):
     with zipfile.ZipFile(test_apk) as archive:
         if archive.read('assets/extended_qa.tsv') != gzip.decompress(fixture.read_bytes()):
             raise ValueError('Android test APK must contain the complete expanded QA fixture')
+        common_fixture = fixture.with_name('common_qa.tsv.gz')
+        if archive.read('assets/common_qa.tsv') != gzip.decompress(common_fixture.read_bytes()):
+            raise ValueError('Android test APK must contain the frequent-message QA fixture')
     for apk in apk_files:
         with zipfile.ZipFile(apk) as archive:
             entry = archive.getinfo("assets/lexicon/russian.bin")
@@ -79,10 +88,17 @@ def verify(report: Path, assets: Path, corpus: Path, apks: Path):
                     raise ValueError('Punctuation weights must be uncompressed for mmap')
                 if hashlib.sha256(archive.read(key)).hexdigest() != digest:
                     raise ValueError('Packaged punctuation hash mismatch: ' + key)
+            if archive.getinfo('assets/common/russian.bin').compress_type != zipfile.ZIP_STORED:
+                raise ValueError('Frequent index must be stored for mmap')
+            if hashlib.sha256(archive.read('assets/common/russian.bin')).hexdigest() != common_manifest['sha256']:
+                raise ValueError('Packaged frequent index hash mismatch')
+            for name in ('manifest.json', 'NOTICE.txt'):
+                if archive.read('assets/common/' + name) != (common_assets / name).read_bytes():
+                    raise ValueError('Frequent index attribution/manifest mismatch: ' + name)
             for name in ('NOTICE.txt', 'manifest.json'):
                 if archive.read('assets/punctuation/' + name) != (punctuation_assets / name).read_bytes():
                     raise ValueError('Punctuation attribution mismatch: ' + name)
-            if any(any(fixture in name for fixture in ('lexicon_corpus','context_holdout','morphology_parity','punctuation_reference','extended_qa','extended_phrase_logits')) for name in archive.namelist()):
+            if any(any(fixture in name for fixture in ('lexicon_corpus','context_holdout','morphology_parity','punctuation_reference','extended_qa','extended_phrase_logits','common_qa','common_phrase_logits')) for name in archive.namelist()):
                 raise ValueError(f"Test corpus accidentally shipped in {apk}")
         print(f"Packaged lexicon OK: {apk.name}")
     return runtime

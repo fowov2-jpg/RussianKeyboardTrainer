@@ -54,7 +54,8 @@ object PunctuationPlanner {
             // Do not apply casing for a sentence break that was NOT inserted.
             // In particular, keep lower-case words after a user's existing comma.
             val consistentCase = !predictedBoundary || actualBoundary
-            if (!word.protected && !word.preserveCase && !((encoding.cutFront || !encoding.sentenceStart) && index == 0)) {
+            val currentInternalWord = mode == Mode.STREAMING && index > 0 && !actualBoundary && word.end == original.length
+            if (!currentInternalWord && !word.protected && !word.preserveCase && !((encoding.cutFront || !encoding.sentenceStart) && index == 0)) {
                 if (consistentCase && prediction.casing == 0 && prediction.casingProbability >= .7) value = value.replaceFirstChar { it.uppercase() }
                 if (prediction.casing == 2 && prediction.casingProbability >= .95 && value.length <= 5) value = value.uppercase()
             }

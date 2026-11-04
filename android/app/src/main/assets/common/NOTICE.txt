@@ -1,0 +1,8 @@
+Frequent dialogue-word correction index, derived by this project.
+FrequencyWords contents by Hermit Dave / OpenSubtitles: CC BY-SA 3.0.
+https://creativecommons.org/licenses/by-sa/3.0/
+Source and pinned hashes: manifest.json. Source frequency file and original notices: data/frequency in the project.
+OpenSubtitles tokenized source: http://opus.lingfil.uu.se/OpenSubtitles2016.php
+Dictionary verification: OpenCorpora CC BY-SA 3.0. See context/OpenCorpora-NOTICE.txt.
+Ambiguity exclusion uses existing pinned Leeds/Hunspell lexicons; see lexicon/NOTICE.txt.
+No private conversations or messenger telemetry. Frequencies are a dialogue proxy.

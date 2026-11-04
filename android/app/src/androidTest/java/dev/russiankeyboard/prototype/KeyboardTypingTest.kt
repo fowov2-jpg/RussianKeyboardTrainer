@@ -278,6 +278,26 @@ class KeyboardTypingTest {
             scenario.onActivity { activity ->
                 assertEquals("севодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
             }
+            scenario.onActivity { activity -> activity.findViewById<EditText>(R.id.demo_editor).setText("") }
+            for (key in listOf("п", "р", "и", "в", "н", "т")) findKey(key, 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("привет", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+            }
+            findKey("Удалить", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("привнт", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+                val field=activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("я приду сеглдн");field.setSelection(field.length())
+            }
+            findKey("я", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("я приду сегодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+            }
+            findKey("Новая строка", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                val text=activity.findViewById<EditText>(R.id.demo_editor).text.toString()
+                assertTrue(text.lowercase().startsWith("я приду сегодня"));assertTrue(text.endsWith("\n"))
+            }
             scenario.onActivity { activity ->
                 activity.findViewById<EditText>(R.id.demo_editor).setText("")
             }

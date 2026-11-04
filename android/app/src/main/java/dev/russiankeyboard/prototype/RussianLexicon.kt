@@ -86,7 +86,7 @@ class RussianLexicon(buffer: ByteBuffer) {
 
     /** A sampled typo can be a suggestion without qualifying for auto-replace. */
     fun lookup(typed: String): Candidate? {
-        if (typed.length !in 4..28) return null
+        if (typed.length !in 3..28) return null
         val key = typed.toByteArray(Charsets.UTF_8)
         if (find(known, key) >= 0) return null
         val index = find(typos, key)

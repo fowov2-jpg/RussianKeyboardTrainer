@@ -21,7 +21,8 @@ class ExtendedKeyboardDeviceTest {
         val morphology = MorphologyDictionary(mapped("context/morphology.bin"))
         val spelling = SpellingIndex(mapped("context/spelling.bin"))
         val lexicon = RussianLexicon(mapped("lexicon/russian.bin"))
-        val wordQa = ExtendedWordQa(RussianCorrectionEngine({ morphology }, { lexicon }), morphology, spelling)
+        val common = RussianLexicon(mapped("common/russian.bin"))
+        val wordQa = ExtendedWordQa(RussianCorrectionEngine({ morphology }, { lexicon }, { common }), morphology, spelling)
         val report = ExtendedQaReport("Android 15 3GB emulator; production live controller and actual bundled RUPunct INT8. Synthetic/public corpus, component/inference tests; not physical-phone UI latency.")
         OnDevicePunctuator.open(context).use { model ->
             for (case in cases) {

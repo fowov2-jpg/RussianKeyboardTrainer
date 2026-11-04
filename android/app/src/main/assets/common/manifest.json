@@ -1,0 +1,17 @@
+{
+  "format": "RSKLEX02",
+  "source": "hermitdave/FrequencyWords, content/2018/ru/ru_50k.txt",
+  "source_revision": "f8a65e6ddc17e0baa2e366a909986798d8dbe55b",
+  "source_sha256": "6095f507cc167488ec66ada5a85ac50433503a08ad24a07c6eabdf54352c4e7f",
+  "content_license": "CC BY-SA 3.0",
+  "source_url": "https://github.com/hermitdave/FrequencyWords/blob/f8a65e6ddc17e0baa2e366a909986798d8dbe55b/content/2018/ru/ru_50k.txt",
+  "word_count": 5000,
+  "error_count": 504972,
+  "automatic_candidates": 431214,
+  "ambiguous_manual_candidates": 73758,
+  "known_ambiguity_pool": 591964,
+  "ambiguous_candidates_removed": 66585,
+  "sha256": "073591e3d68514935956a3ac6439ff3baecbc06b39d0d2d0b7310e3646c79cef",
+  "bytes": 12752654,
+  "scope": "Top 5000 frequent dictionary-confirmed dialogue words excluding probable personal names. Exhaustive supported single physical edits; valid forms protected; ambiguity checked against pinned lexicons, short OpenCorpora forms and verified frequency words. Not human-error accuracy or messenger statistics."
+}

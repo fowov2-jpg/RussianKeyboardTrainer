@@ -20,7 +20,7 @@ import java.util.Locale
  */
 class RussianKeyboardImeService : InputMethodService() {
     private val engine = RussianCorrectionEngine(morphology = { LexiconLoader.morphology },
-        lexicon = { LexiconLoader.current })
+        lexicon = { LexiconLoader.current }, common = { LexiconLoader.common })
     private val undo = CorrectionUndoState()
     private var shifted = false
     private var english = false

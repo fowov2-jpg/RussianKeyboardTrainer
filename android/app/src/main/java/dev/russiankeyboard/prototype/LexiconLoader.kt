@@ -11,12 +11,14 @@ object LexiconLoader {
     @Volatile private var contextAssistant: ContextualAssistant? = null
     @Volatile private var knownForms: MorphologyDictionary? = null
     @Volatile private var prefixIndex: SpellingIndex? = null
+    @Volatile private var commonIndex: RussianLexicon? = null
     @Volatile private var started = false
     private val worker = Executors.newSingleThreadExecutor()
     val current: RussianLexicon? get() = loaded.takeIf { knownForms != null }
     val morphology: MorphologyDictionary? get() = knownForms
     val assistant: ContextualAssistant? get() = contextAssistant
     val spelling: SpellingIndex? get() = prefixIndex
+    val common: RussianLexicon? get() = commonIndex
 
     @Synchronized fun warmUp(context: Context) {
         if (started) return
@@ -42,6 +44,10 @@ object LexiconLoader {
                     requireNotNull(prefixIndex), ContextLanguageModel(mapped("language.bin")),
                     ContextualAssistant.parsePredictions(lines("predictions.tsv")),
                     ContextualAssistant.parseGrammar(lines("grammar.tsv")), knownForms)
+                app.assets.openFd("common/russian.bin").use { asset ->
+                    asset.createInputStream().use { stream -> commonIndex = RussianLexicon(stream.channel.map(
+                        FileChannel.MapMode.READ_ONLY, asset.startOffset, asset.declaredLength)) }
+                }
             } catch (_: java.io.IOException) {
                 // Keep the small built-in fallback usable if an asset is missing.
             } catch (_: IllegalArgumentException) {

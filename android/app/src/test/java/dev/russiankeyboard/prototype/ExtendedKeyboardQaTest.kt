@@ -30,7 +30,8 @@ class ExtendedKeyboardQaTest(private val case: ExtendedCase) {
         private val morphology by lazy { MorphologyDictionary(mapped(File(context, "morphology.bin"))) }
         private val spelling by lazy { SpellingIndex(mapped(File(context, "spelling.bin"))) }
         private val lexicon by lazy { RussianLexicon(mapped(File(requireNotNull(System.getProperty("rsk.lexicon"))))) }
-        private val wordQa by lazy { ExtendedWordQa(RussianCorrectionEngine({ morphology }, { lexicon }), morphology, spelling) }
+        private val common by lazy { RussianLexicon(mapped(File(requireNotNull(System.getProperty("rsk.common")), "russian.bin"))) }
+        private val wordQa by lazy { ExtendedWordQa(RussianCorrectionEngine({ morphology }, { lexicon }, { common }), morphology, spelling) }
         private val tokenizer by lazy { PunctuationTokenizer(File(System.getProperty("rsk.punctuation"), "vocab.txt").readLines()) }
         private data class Reference(val ids: LongArray, val positions: List<Int>, val predictions: List<PunctuationPlanner.Prediction>)
         private val references: Map<String, Reference> by lazy {

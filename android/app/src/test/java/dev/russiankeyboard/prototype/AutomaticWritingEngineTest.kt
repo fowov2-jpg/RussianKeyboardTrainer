@@ -8,7 +8,10 @@ class AutomaticWritingEngineTest {
         { _, _, _, _ -> null }, enabled)
     @Test fun onlyCurrentParagraphAndSafeWholeWordsAreChanged() {
         val mode = PunctuationPlanner.Mode.STREAMING
-        assertEquals("севодня\nспасибо", engine().analyze("севодня\nспосибо", "", WritingProfile(), mode)?.replacement)
+        val ongoing=engine().analyze("севодня\nспосибо", "", WritingProfile(), mode)!!
+        assertEquals("севодня\nспосибо", ongoing.replacement)
+        assertEquals("севодня\nспасибо", ongoing.finalizedReplacement)
+        assertEquals("севодня\nспасибо ", engine().analyze("севодня\nспосибо ", "", WritingProfile(), mode)?.replacement)
         for (text in listOf("https://example.com/спосибо", "@спосибо", "#спосибо", "спосибо_мир", "спосибо-тест", "«спосибо»", "ПрЕвЕт")) {
             assertNull(text, engine().analyze(text, "", WritingProfile(), mode))
         }

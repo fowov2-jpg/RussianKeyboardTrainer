@@ -104,7 +104,7 @@ def build():
     return phrases
 
 
-def reference(phrases):
+def reference(phrases, path=None, manifest_path=None):
     import numpy as np
     import onnxruntime as ort
     from tokenizers import Tokenizer
@@ -132,9 +132,9 @@ def reference(phrases):
         for position in positions:
             integer(position); output.extend(struct.pack('>33f', *logits[position]))
         if (i + 1) % 300 == 0: print('Real model references:', i + 1, flush=True)
-    path = RESOURCES / 'extended_phrase_logits.bin'
+    path = path or RESOURCES / 'extended_phrase_logits.bin'
     path.write_bytes(output)
-    manifest_path = DEST / 'extended_qa_manifest.json'
+    manifest_path = manifest_path or DEST / 'extended_qa_manifest.json'
     manifest = json.loads(manifest_path.read_text())
     manifest['reference_logits_sha256'] = hashlib.sha256(output).hexdigest()
     manifest['reference_model_sha256'] = hashlib.sha256((assets / 'model.bin').read_bytes()).hexdigest()

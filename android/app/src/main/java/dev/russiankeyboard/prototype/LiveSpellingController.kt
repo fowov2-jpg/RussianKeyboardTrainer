@@ -8,7 +8,7 @@ class LiveSpellingController(
     private val protectedPrefix: (String) -> Boolean = prefix
 ) {
     data class Plan(val edit: RussianCorrectionEngine.Edit?, val checkpoint: RussianCorrectionEngine.Edit?)
-    private data class Pending(val raw: String, val shown: String, val anchor: String)
+    private data class Pending(val raw: String, val shown: String, val anchor: String, val strict: Boolean = false)
     private var pending: Pending? = null
     private val word = Regex("[А-Яа-яЁё]+$")
     val active: Boolean get() = pending != null
@@ -17,7 +17,7 @@ class LiveSpellingController(
         val old = pending ?: return
         val observed = text.takeLast(old.shown.length)
         pending = if (observed.equals(old.shown, ignoreCase = true) && conventional(observed))
-            Pending(old.raw, observed, text.dropLast(observed.length).takeLast(64)) else null
+            old.copy(shown = observed, anchor = text.dropLast(observed.length).takeLast(64)) else null
     }
     private fun conventional(value: String): Boolean = value == value.lowercase() || value == value.uppercase() ||
         value == value.lowercase().replaceFirstChar { it.uppercase() }
@@ -38,28 +38,29 @@ class LiveSpellingController(
             }
             val ordinary = key.all { it in 'а'..'я' || it in 'А'..'Я' || it in "ёЁ" } && conventional(raw) && !knownPrefix(raw)
             val choices = if (ordinary) engine.suggestions(old.anchor + raw) else emptyList()
-            val fresh = choices.firstOrNull { it.automatic }?.edit?.replacementWithSpace?.trimEnd()
+            val freshChoice = choices.firstOrNull { it.automatic }
+            val fresh = freshChoice?.edit?.replacementWithSpace?.trimEnd()
             if (fresh != null) {
-                pending = Pending(raw, fresh, old.anchor)
+                pending = Pending(raw, fresh, old.anchor, freshChoice?.requiresGrowingEvidence == true)
                 return Plan(if (fresh == shown) null else RussianCorrectionEngine.Edit(shown, fresh, RussianCorrectionEngine.Reason.TYPO),
                     RussianCorrectionEngine.Edit(raw, fresh, RussianCorrectionEngine.Reason.TYPO))
             }
             // A later letter can expose a competing complete-word candidate.
             // Do not carry an earlier prefix guess past that new ambiguity.
-            val keep = ordinary && knownPrefix(shown.substringAfterLast(' ')) &&
-                choices.none { it.edit.replacementWithSpace.trimEnd() != shown }
+            val keep = !old.strict && ordinary && knownPrefix(shown.substringAfterLast(' ')) &&
+                !engine.hasAmbiguousFrequentCandidate(raw) && choices.none { it.edit.replacementWithSpace.trimEnd() != shown }
             if (keep) {
-                pending = Pending(raw, shown, old.anchor)
+                pending = Pending(raw, shown, old.anchor, old.strict)
                 return Plan(null, RussianCorrectionEngine.Edit(raw, shown, RussianCorrectionEngine.Reason.TYPO))
             }
             return Plan(RussianCorrectionEngine.Edit(shown, raw, RussianCorrectionEngine.Reason.TYPO), null)
         }
         if (!ready() || !key.all { it in 'а'..'я' || it in 'А'..'Я' || it in "ёЁ" }) return null
         val match = word.find(text) ?: return null
-        if (match.value.length !in 4..28 || protectedPrefix(match.value.lowercase())) return null
+        if (match.value.length !in 3..28 || protectedPrefix(match.value.lowercase())) return null
         val choice = engine.suggestions(text).firstOrNull { it.automatic } ?: return null
         val shown = choice.edit.replacementWithSpace.trimEnd()
-        pending = Pending(match.value, shown, text.substring(0, match.range.first).takeLast(64))
+        pending = Pending(match.value, shown, text.substring(0, match.range.first).takeLast(64), choice.requiresGrowingEvidence)
         val edit = RussianCorrectionEngine.Edit(match.value, shown, RussianCorrectionEngine.Reason.TYPO)
         return Plan(edit, edit)
     }
