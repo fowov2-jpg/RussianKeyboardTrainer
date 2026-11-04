@@ -6,6 +6,7 @@ import android.widget.EditText
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.lifecycle.Lifecycle
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
@@ -52,12 +53,33 @@ class KeyboardTypingTest {
                 )
             }
 
-            // An input method cannot always be shown in the same frame as
-            // ActivityScenario's focus change. Tap the real editor in the
-            // foreground, then post the IME request to the next UI-loop tick.
-            val editor = device.wait(
-                Until.findObject(By.res(app.packageName, "demo_editor")), 12_000)
-            assertNotNull("The demo editor is not visible", editor)
+            // UiAutomator sees the SYSTEM foreground, not just this Activity.
+            // A slow Google APIs emulator can surface a Pixel Launcher ANR
+            // above our correctly started editor. Recover that unrelated
+            // system dialog once, then bring THIS Activity back to RESUMED.
+            // Never dismiss an ANR for our own app or skip real IME key taps.
+            fun findEditor(): UiObject2? =
+                device.wait(Until.findObject(By.res(app.packageName, "demo_editor")), 8_000)
+            var editor = findEditor()
+            if (editor == null) {
+                val launcherAnr =
+                    device.findObject(By.textContains("Pixel Launcher isn't responding"))
+                if (launcherAnr != null) {
+                    val closeLauncher = device.findObject(By.text("Close app"))
+                    assertNotNull("Cannot dismiss the unrelated Pixel Launcher ANR", closeLauncher)
+                    closeLauncher!!.click()
+                }
+                // An ActivityScenario in RESUMED state can still be occluded
+                // by another task/dialog. Transition explicitly to restore
+                // foreground visibility before using UiAutomator.
+                scenario.moveToState(Lifecycle.State.STARTED)
+                scenario.moveToState(Lifecycle.State.RESUMED)
+                editor = findEditor()
+            }
+            assertNotNull("The demo editor is not visible after foreground recovery", editor)
+
+            // The IME cannot always be shown in the same frame as a focus
+            // change. Tap the real editor and post showSoftInput to the UI loop.
 
             fun findKey(key: String, timeoutMs: Long = 5_000): UiObject2? =
                 device.wait(Until.findObject(By.desc(key).pkg(app.packageName)), timeoutMs)
