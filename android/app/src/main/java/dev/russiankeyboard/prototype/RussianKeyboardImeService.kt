@@ -208,8 +208,11 @@ class RussianKeyboardImeService : InputMethodService() {
     private fun addRow(keyboard: LinearLayout, labels: List<String>) {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         for (label in labels) {
+            val info = currentInputEditorInfo
+            val enterAction = if (label == "↵" && info != null)
+                EditorActionPolicy.action(info.inputType, info.imeOptions) else null
             val key = Button(this).apply {
-                text = label
+                text = enterAction?.label ?: label
                 isAllCaps = false
                 textSize = if (label == "Пробел") 13f else 17f
                 minimumWidth = 0
@@ -220,7 +223,7 @@ class RussianKeyboardImeService : InputMethodService() {
                 contentDescription = when (label) {
                     "⇧" -> "Shift"
                     "⌫" -> "Удалить"
-                    "↵" -> "Новая строка"
+                    "↵" -> enterAction?.description ?: "Новая строка"
                     "Пробел" -> "Пробел"
                     else -> label
                 }
@@ -260,10 +263,9 @@ class RussianKeyboardImeService : InputMethodService() {
                 undo.clear()
                 keepAfterUndo = false
                 val info = currentInputEditorInfo
-                val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
-                val multiline = (info?.inputType ?: 0) and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
-                if (!multiline && action !in listOf(EditorInfo.IME_ACTION_NONE, EditorInfo.IME_ACTION_UNSPECIFIED)) {
-                    connection.performEditorAction(action)
+                val action = info?.let { EditorActionPolicy.action(it.inputType, it.imeOptions) }
+                if (action != null) {
+                    connection.performEditorAction(action.code)
                 } else connection.commitText("\n", 1)
             }
             else -> {
