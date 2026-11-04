@@ -1,0 +1,79 @@
+name: android-emulator
+on:
+  pull_request:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-emulator.yml'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  instrumentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Install build SDK
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Preinstall Android 35 emulator image (retry corrupt SDK downloads)
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="system-images;android-35;google_apis;x86_64"
+          target="$ANDROID_HOME/system-images/android-35/google_apis/x86_64/source.properties"
+          for attempt in 1 2 3; do
+            if sdkmanager --install "$image" && test -s "$target"; then
+              echo "Verified Android 35 Google APIs x86_64 system image"
+              exit 0
+            fi
+            echo "::warning::Android system image download failed (attempt $attempt/3); retrying"
+            rm -rf "$ANDROID_HOME/system-images/android-35/google_apis/x86_64"
+            rm -rf "$HOME/.android/cache"
+            sleep $((attempt * 5))
+          done
+          echo "::error::Android system image unavailable after three attempts"
+          exit 1
+      - name: Allow KVM on Linux
+        run: |
+          if test -e /dev/kvm; then sudo chmod 666 /dev/kvm; fi
+      - name: Emulator API 35, 3 GB RAM — instrumentation and IME
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          cores: 2
+          ram-size: 3072M
+          heap-size: 256M
+          emulator-boot-timeout: 600
+          script: bash scripts/ci_android_emulator.sh
+      - name: Emulator reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-3gb-emulator-reports
+          path: |
+            reports/emulator/
+            android/app/build/reports/androidTests/connected/
+            android/app/build/outputs/androidTest-results/connected/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Result summary
+        if: success()
+        run: |
+          echo '### Android emulator (3GB RAM, API 35)' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Passed instrumentation and IME registration checks. This does **not** certify real phone RAM, thermals or battery.' >> "$GITHUB_STEP_SUMMARY"

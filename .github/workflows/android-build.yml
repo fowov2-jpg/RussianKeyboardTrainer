@@ -1,0 +1,100 @@
+name: android-build
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'scripts/ci_verify_android_corpus.py'
+      - '.github/workflows/android-build.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'scripts/ci_verify_android_corpus.py'
+      - '.github/workflows/android-build.yml'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Install Android SDK 35
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      # Compile Android instrumentation sources without starting an emulator.
+      # This detects Kotlin errors in androidTest before slow AVD workflows run.
+      - name: Unit tests, Android lint, APK and instrumentation compile
+        run: gradle -p android --no-daemon --max-workers=2 testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
+      - name: Require 10000+ distinct word/sentence regression tests
+        run: |
+          python3 scripts/ci_verify_android_corpus.py \
+            --reports android/app/build/test-results/testDebugUnitTest \
+            --minimum 10000 --summary "$GITHUB_STEP_SUMMARY"
+      - name: Upload unit and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-static-and-unit-reports
+          path: |
+            android/app/build/test-results/testDebugUnitTest/
+            android/app/build/reports/tests/testDebugUnitTest/
+            android/app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Audit packaged APK permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          aapt="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          shopt -s nullglob
+          apks=(android/app/build/outputs/apk/debug/*.apk)
+          if (( ${#apks[@]} == 0 )); then
+            echo "::error::No APK found to audit"
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            echo "Auditing packaged permissions: $apk"
+            # This reads the final merged, packaged manifest, not the source XML.
+            permissions="$("$aapt" dump permissions "$apk")"
+            printf '%s\n' "$permissions"
+            if grep -Eq "uses-permission(-sdk-23)?:|uses-permission(-sdk-23)? name=" <<< "$permissions"; then
+              echo "::error::Unexpected uses-permission in $apk (fail closed)"
+              exit 1
+            fi
+            # The IME service's BIND_INPUT_METHOD is a service-level protection,
+            # not an app-requested permission, so it must not appear above.
+          done
+      - name: Record APK SHA-256 checksums
+        shell: bash
+        run: |
+          cd android/app/build/outputs/apk/debug
+          sha256sum ./*.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Report per-ABI APK sizes
+        run: |
+          echo '### Debug APK sizes by CPU architecture' >> "$GITHUB_STEP_SUMMARY"
+          ls -lh android/app/build/outputs/apk/debug/*.apk | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: russian-keyboard-debug-apk
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/debug/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 7
