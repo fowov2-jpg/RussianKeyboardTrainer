@@ -22,8 +22,8 @@ android {
         applicationId = "dev.russiankeyboard.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.0.0-rc7"
+        versionCode = 9
+        versionName = "1.0.0-rc8"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

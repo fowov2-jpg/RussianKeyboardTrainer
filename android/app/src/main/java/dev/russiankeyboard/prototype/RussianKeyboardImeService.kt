@@ -450,7 +450,7 @@ class RussianKeyboardImeService : InputMethodService() {
         requests.submit({
             val base = assistant.review(span, conversation, profile)
             val text = base?.proposed ?: span
-            val punctuated = punctuation().predict(text, conversation, PunctuationPlanner.Mode.FINALIZE)
+            val punctuated = punctuation().predict(text, conversation, PunctuationPlanner.Mode.REVIEW)
             val proposed = punctuated?.text ?: text
             if (proposed == span) null else ContextualAssistant.Review(span, proposed, (base?.changes ?: 0) + if (punctuated != null) 1 else 0)
         }, { result ->

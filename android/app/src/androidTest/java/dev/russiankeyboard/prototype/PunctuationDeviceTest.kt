@@ -30,6 +30,11 @@ class PunctuationDeviceTest {
                 times.add(SystemClock.elapsedRealtime() - before)
                 assertEquals(expected, output)
             }
+            for (text in listOf("Он инженер.", "Мы соседи.", "Нужно это проверить.",
+                "Спасибо, что позвонили.", "Я думаю, они коллеги.", "Хочу быть как ты.")) {
+                for (mode in listOf(PunctuationPlanner.Mode.STREAMING, PunctuationPlanner.Mode.FINALIZE))
+                    assertEquals(text, model.predict(text, mode = mode)?.text ?: text)
+            }
             assertEquals("Спасибо за помощь.", model.predict("спасибо за помощь", mode = PunctuationPlanner.Mode.FINALIZE)?.text)
             assertNull(model.predict("https://example.com/привет", mode = PunctuationPlanner.Mode.FINALIZE))
             times.sort()

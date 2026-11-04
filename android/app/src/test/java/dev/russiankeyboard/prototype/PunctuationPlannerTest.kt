@@ -56,6 +56,16 @@ class PunctuationPlannerTest {
             }
         }
     }
+    @Test fun realModelRetainsSeparateReadySentenceControls() {
+        val controls = setOf("Он инженер.", "Мы соседи.", "Нужно это проверить.",
+            "Спасибо, что позвонили.", "Я думаю, они коллеги.", "Хочу быть как ты.")
+        val references = references().filter { it.text in controls }
+        assertEquals(controls.size, references.size)
+        for (reference in references) for (mode in listOf(PunctuationPlanner.Mode.STREAMING, PunctuationPlanner.Mode.FINALIZE)) {
+            val actual = PunctuationPlanner.plan(reference.text, tokenizer.encode(reference.text), reference.predictions, mode)?.text ?: reference.text
+            assertEquals(reference.text, actual)
+        }
+    }
     @Test fun protectedSpansAndExistingPunctuationSurviveAggressivePredictions() {
         for (text in listOf("https://example.com/привет", "@привет", "#привет", "привет_мир", "«привет как дела»")) {
             val encoded = tokenizer.encode(text)
@@ -86,7 +96,53 @@ class PunctuationPlannerTest {
         val name = "я вижу анну"
         val nameScores = listOf(PunctuationPlanner.Prediction(10, .99, .98, 0, .99),
             PunctuationPlanner.Prediction(10, .99, .98, 1, .99), PunctuationPlanner.Prediction(10, .99, .98, 0, .99))
+        assertEquals("Я вижу Анну", PunctuationPlanner.plan(name, tokenizer.encode(name), nameScores, PunctuationPlanner.Mode.REVIEW)?.text)
         assertEquals("Я вижу Анну", PunctuationPlanner.plan(name, tokenizer.encode(name), nameScores, PunctuationPlanner.Mode.FINALIZE)?.text)
         assertEquals("Я вижу анну", PunctuationPlanner.plan(name, tokenizer.encode(name), nameScores, PunctuationPlanner.Mode.STREAMING)?.text)
+    }
+
+    @Test fun automaticCasingProtectsFunctionWordsWithoutLosingRealBoundaries() {
+        for (text in listOf("Спасибо, что вы пришли.", "Мне нужно это проверить.", "Скажи ему, что я приду.")) {
+            val encoding = tokenizer.encode(text)
+            val protected = setOf("что", "вы", "это", "ему", "я")
+            val loud = encoding.words.map { PunctuationPlanner.Prediction(10, .99, .98, if (it.text.lowercase() in protected) 0 else 1, .99) }
+            for (mode in listOf(PunctuationPlanner.Mode.STREAMING, PunctuationPlanner.Mode.FINALIZE))
+                assertNull(text, PunctuationPlanner.plan(text, encoding, loud, mode))
+        }
+        val text = "Я пришёл. теперь ждём"
+        val encoding = tokenizer.encode(text)
+        val scores = encoding.words.mapIndexed { i, _ -> PunctuationPlanner.Prediction(10, .99, .98, if (i == 2) 0 else 1, .99) }
+        assertEquals("Я пришёл. Теперь ждём", PunctuationPlanner.plan(text, encoding, scores, PunctuationPlanner.Mode.FINALIZE)?.text)
+    }
+
+    @Test fun ambiguousSubjectAndPredicateCommaIsNotInsertedAutomatically() {
+        for (text in listOf("Он врач.", "Мы команда.", "Она инженер.", "Я думаю, они коллеги.", "Вы соседи. Завтра поговорим.")) {
+            val encoding = tokenizer.encode(text)
+            val loud = encoding.words.map { PunctuationPlanner.Prediction(1, .99, .98, 1, .99) }
+            val result = PunctuationPlanner.plan(text, encoding, loud, PunctuationPlanner.Mode.FINALIZE)?.text ?: text
+            assertFalse(result, Regex("(?iu)(он|мы|она|они|вы),").containsMatchIn(result))
+        }
+        val text = "Папа ты дома"
+        val encoding = tokenizer.encode(text)
+        val scores = listOf(PunctuationPlanner.Prediction(1, .99, .98, 1, .99),
+            PunctuationPlanner.Prediction(10, .99, .98, 1, .99), PunctuationPlanner.Prediction(2, .99, .98, 1, .99))
+        assertEquals("Папа, ты дома?", PunctuationPlanner.plan(text, encoding, scores, PunctuationPlanner.Mode.FINALIZE)?.text)
+        val existing = "Вы, друзья, помогли."
+        val e = tokenizer.encode(existing)
+        assertNull(PunctuationPlanner.plan(existing, e, e.words.map { PunctuationPlanner.Prediction(10, .99, .98, 1, .99) }, PunctuationPlanner.Mode.FINALIZE))
+    }
+
+    @Test fun predicateComparisonRemainsJoinedButOtherComparisonsStillWork() {
+        for (verb in listOf("быть", "стать", "оставаться")) {
+            val text = "Хочу $verb как ты"
+            val encoding = tokenizer.encode(text)
+            val scores = encoding.words.mapIndexed { i, _ -> PunctuationPlanner.Prediction(if (i == 1) 1 else 10, .99, .98, 1, .99) }
+            assertNull(PunctuationPlanner.plan(text, encoding, scores, PunctuationPlanner.Mode.FINALIZE))
+            assertEquals("Хочу $verb, как ты", PunctuationPlanner.plan(text, encoding, scores, PunctuationPlanner.Mode.REVIEW)?.text)
+        }
+        val text = "Я знаю как поступить"
+        val encoding = tokenizer.encode(text)
+        val scores = encoding.words.mapIndexed { i, _ -> PunctuationPlanner.Prediction(if (i == 1) 1 else 10, .99, .98, 1, .99) }
+        assertEquals("Я знаю, как поступить", PunctuationPlanner.plan(text, encoding, scores, PunctuationPlanner.Mode.FINALIZE)?.text)
     }
 }
