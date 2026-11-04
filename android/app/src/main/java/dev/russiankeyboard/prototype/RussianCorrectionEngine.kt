@@ -23,6 +23,63 @@ class RussianCorrectionEngine {
         "потомучто" to "потому что",
         "здравстуйте" to "здравствуйте"
     )
+    /**
+     * Bounded, offline prefix suggestions for the curated fallback vocabulary.
+     * This is deliberately NOT the full lexicon and never applies an edit.
+     * Callers may query it on every letter; no model or network work is performed.
+     */
+    private val suggestionWords: List<String> = (
+        safeTypos.values.flatMap { it.split(' ') } +
+        listOf("привет", "пример", "причина", "приказ", "правда",
+            "как", "не", "что", "дела", "домой", "хочу", "спасибо")
+    ).distinct().sorted()
+
+    private val prefixIndex: Map<String, List<String>> = buildMap {
+        for (word in suggestionWords) {
+            for (length in 1..word.length) {
+                val prefix = word.substring(0, length)
+                val existing = get(prefix).orEmpty()
+                if (existing.size < 8) put(prefix, existing + word)
+            }
+        }
+    }
+
+    /**
+     * Suggest only; do not replace text while the user is still typing.
+     * Exact prefix results come first. A one-edit typo search is allowed
+     * only for at least four characters, to protect short valid words.
+     */
+    fun suggestForPrefix(typed: String, limit: Int = 3): List<String> {
+        if (limit <= 0 || typed.length !in 1..32 ||
+            !typed.all { it in 'а'..'я' || it == 'ё' || it in 'А'..'Я' || it == 'Ё' }
+        ) return emptyList()
+        val normalized = typed.lowercase(russianLocale)
+        val exact = prefixIndex[normalized].orEmpty()
+        if (exact.isNotEmpty()) return exact.take(limit.coerceAtMost(8))
+        if (normalized.length < 4) return emptyList()
+        return suggestionWords.asSequence()
+            .filter { kotlin.math.abs(it.length - normalized.length) <= 1 }
+            .filter { oneEditApart(normalized, it) }
+            .take(limit.coerceAtMost(8)).toList()
+    }
+
+    private fun oneEditApart(a: String, b: String): Boolean {
+        if (a == b) return true
+        var i = 0
+        var j = 0
+        var edits = 0
+        while (i < a.length && j < b.length) {
+            if (a[i] == b[j]) { i++; j++; continue }
+            if (++edits > 1) return false
+            when {
+                a.length > b.length -> i++
+                b.length > a.length -> j++
+                else -> { i++; j++ }
+            }
+        }
+        return edits + (a.length - i) + (b.length - j) <= 1
+    }
+
     private val wordAtEnd = Regex("[А-Яа-яЁё]+$")
     private val russianLocale = Locale.forLanguageTag("ru")
 
