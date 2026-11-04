@@ -65,7 +65,11 @@ if grep -Eqi "unknown input method|cannot be" reports/emulator/ime-enable.txt re
 fi
 adb shell settings put secure show_ime_with_hard_keyboard 1
 adb logcat -c
-if gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest; then
+# Remove only this suite's old synthetic reports; a skipped run cannot reuse them.
+adb shell run-as "$APP" rm -f files/extended-qa-summary.json files/extended-qa-cases.tsv
+# UTP otherwise uninstalls the target app (and its private report files) on exit.
+if gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest \
+  -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true; then
   instrumentation_status=0
 else
   instrumentation_status=$?
@@ -80,7 +84,7 @@ path=Path('reports/emulator/extended-qa-summary.json')
 try:
     report=json.loads(path.read_text())
 except (OSError, ValueError):
-    print('Extended QA report missing; original instrumentation failure is preserved.')
+    print('Extended QA report missing after instrumentation; status='+sys.argv[1])
     raise SystemExit(0 if int(sys.argv[1]) else 1)
 assert report['cases']==report['unique_inputs']==7500
 print('EXTENDED_ANDROID_QA_SUMMARY='+json.dumps(report,ensure_ascii=False))
