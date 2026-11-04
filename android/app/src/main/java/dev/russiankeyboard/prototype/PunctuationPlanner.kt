@@ -64,7 +64,7 @@ object PunctuationPlanner {
     }
 
     fun plan(original: String, encoding: PunctuationTokenizer.Encoding,
-             predictions: List<Prediction>, mode: Mode): Result? {
+             predictions: List<Prediction>, mode: Mode, ordinaryWords: Set<String> = emptySet()): Result? {
         require(encoding.words.size == predictions.size)
         val words = encoding.words
         if (words.isEmpty() || words.none { it.text.any { c -> c in 'а'..'я' || c in 'А'..'Я' || c == 'ё' || c == 'Ё' } }) return null
@@ -86,7 +86,9 @@ object PunctuationPlanner {
             // A pronoun/function word is not a proper name merely because the
             // model predicts capitalisation. Real boundaries remain eligible;
             // other words (names, places, acronyms) retain the existing policy.
-            val caseBoundary = actualBoundary || mode == Mode.REVIEW || word.text.lowercase() !in lowercaseInsideSentence
+            val lower = word.text.lowercase()
+            val caseBoundary = actualBoundary || mode == Mode.REVIEW ||
+                lower !in lowercaseInsideSentence && lower !in ordinaryWords
             if (caseBoundary && !currentInternalWord && !word.protected && !word.preserveCase && !((encoding.cutFront || !encoding.sentenceStart) && index == 0)) {
                 if (consistentCase && prediction.casing == 0 && prediction.casingProbability >= .7) value = value.replaceFirstChar { it.uppercase() }
                 if (prediction.casing == 2 && prediction.casingProbability >= .95 && value.length <= 5) value = value.uppercase()

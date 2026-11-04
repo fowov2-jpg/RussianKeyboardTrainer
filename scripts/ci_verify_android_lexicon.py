@@ -41,6 +41,10 @@ def verify(report: Path, assets: Path, corpus: Path, apks: Path):
         raise ValueError('Frequent dialogue index coverage missing')
     if hashlib.sha256((common_assets / 'russian.bin').read_bytes()).hexdigest() != common_manifest['sha256']:
         raise ValueError('Frequent dialogue index source hash mismatch')
+    casing = common_manifest['casing_guard']
+    casing_data = (common_assets / casing['file']).read_bytes()
+    if hashlib.sha256(casing_data).hexdigest() != casing['sha256'] or len(casing_data.splitlines()) != casing['words']:
+        raise ValueError('Ordinary-word casing guard source mismatch')
     punctuation_manifest = json.loads((punctuation_assets / 'manifest.json').read_text(encoding='utf-8'))
     if (punctuation_manifest['license'] != 'MIT' or punctuation_manifest['model_bytes'] != 29259673 or
             punctuation_manifest['sha256']['model.bin'] != 'b105da023474d98aa13ba18953ae67b04b17bd0595034bc06030c17536893933'):
@@ -95,6 +99,8 @@ def verify(report: Path, assets: Path, corpus: Path, apks: Path):
             for name in ('manifest.json', 'NOTICE.txt'):
                 if archive.read('assets/common/' + name) != (common_assets / name).read_bytes():
                     raise ValueError('Frequent index attribution/manifest mismatch: ' + name)
+            if archive.read('assets/common/' + casing['file']) != casing_data:
+                raise ValueError('Ordinary-word casing guard missing or changed in APK')
             for name in ('NOTICE.txt', 'manifest.json'):
                 if archive.read('assets/punctuation/' + name) != (punctuation_assets / name).read_bytes():
                     raise ValueError('Punctuation attribution mismatch: ' + name)

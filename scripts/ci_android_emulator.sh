@@ -36,6 +36,12 @@ if [ "${ONNX_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
+# Reproduce the phone's three-button navigation, including the bottom touch strip.
+adb shell cmd overlay list > reports/emulator/navigation-overlays-before.txt
+if ! grep -Fq '[x] com.android.internal.systemui.navbar.threebutton' reports/emulator/navigation-overlays-before.txt; then
+  adb shell cmd overlay enable-exclusive --category --user 0 com.android.internal.systemui.navbar.threebutton
+fi
+adb shell settings get secure navigation_mode > reports/emulator/navigation-mode.txt
 adb install -r "$APK"
 adb shell am start -n "$APP/.MainActivity"
 

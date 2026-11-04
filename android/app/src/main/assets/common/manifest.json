@@ -13,5 +13,18 @@
   "ambiguous_candidates_removed": 66585,
   "sha256": "073591e3d68514935956a3ac6439ff3baecbc06b39d0d2d0b7310e3646c79cef",
   "bytes": 12752654,
-  "scope": "Top 5000 frequent dictionary-confirmed dialogue words excluding probable personal names. Exhaustive supported single physical edits; valid forms protected; ambiguity checked against pinned lexicons, short OpenCorpora forms and verified frequency words. Not human-error accuracy or messenger statistics."
+  "scope": "Top 5000 frequent dictionary-confirmed dialogue words excluding probable personal names. Exhaustive supported single physical edits; valid forms protected; ambiguity checked against pinned lexicons, short OpenCorpora forms and verified frequency words. Not human-error accuracy or messenger statistics.",
+  "casing_guard": {
+    "file": "punctuation_lowercase.txt",
+    "words": 14412,
+    "sha256": "00434dab11464f313e7f9d2fcdaf3aca8565afa9480a56352cfed9352ee49248",
+    "license": "CC BY-SA 3.0",
+    "source": "Pinned FrequencyWords Russian and OpenCorpora via pymorphy3-dicts-ru 2.4.417150.4580142",
+    "dictionary_files": {
+      "words.dawg": "ae4381a9d6e4e636309ac1a242e480a9470a05723f6673d5fcc3fcf293aa8a9e",
+      "gramtab-opencorpora-int.json": "1a72703ac84c16572deee6a92779a322b59763cbc336021433d52c33160fa05b",
+      "paradigms.array": "dfc465558f1a2760bbde6fa89f0447a5c93896da429efe658fe2f0638954758b"
+    },
+    "rule": "Every dictionary analysis must be known VERB/INFN/ADVB/GRND, without proper-name or abbreviation tags. No QA output selection."
+  }
 }

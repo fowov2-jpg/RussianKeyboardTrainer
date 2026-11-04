@@ -24,10 +24,11 @@ class FrequentKeyboardQaTest(private val case: ExtendedCase) {
         assertArrayEquals(case.id, reference.ids, encoding.ids)
         assertEquals(reference.positions, encoding.words.map { it.firstToken })
         val start = System.nanoTime()
-        val output = PunctuationPlanner.plan(case.input, encoding, reference.scores, PunctuationPlanner.Mode.FINALIZE)?.text ?: case.input
+        val output = PunctuationPlanner.plan(case.input, encoding, reference.scores, PunctuationPlanner.Mode.FINALIZE, ordinaryWords)?.text ?: case.input
         return ExtendedPhraseQa.run(case, output, System.nanoTime() - start)
     }
     companion object {
+        private val ordinaryWords by lazy { File(requireNotNull(System.getProperty("rsk.common")), "punctuation_lowercase.txt").readLines().toSet() }
         private fun mapped(file: File) = file.inputStream().use { it.channel.map(FileChannel.MapMode.READ_ONLY, 0, file.length()) }
         private val context = File(requireNotNull(System.getProperty("rsk.context")))
         private val morphology by lazy { MorphologyDictionary(mapped(File(context, "morphology.bin"))) }

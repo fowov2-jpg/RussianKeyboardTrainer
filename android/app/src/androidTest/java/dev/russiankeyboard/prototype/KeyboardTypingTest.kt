@@ -26,6 +26,43 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class KeyboardTypingTest {
+    /** Raw key bounds (not clipped accessibility bounds), then actual lower-edge taps. */
+    private fun checkBottomRow(device: UiDevice, scenario: ActivityScenario<MainActivity>) {
+        if (android.os.Build.VERSION.SDK_INT < 30) return
+        val points = mutableListOf<Pair<Int, Int>>()
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val decor = android.view.inspector.WindowInspector.getGlobalWindowViews()
+                .firstOrNull { it.findViewById<android.view.View>(R.id.keyboard_root) != null }
+            assertNotNull("IME window not found", decor)
+            val root = decor!!.findViewById<android.view.View>(R.id.keyboard_root)
+            val safe = requireNotNull(decor.rootWindowInsets).getInsets(
+                android.view.WindowInsets.Type.navigationBars() or android.view.WindowInsets.Type.mandatorySystemGestures())
+            val density = root.resources.displayMetrics.density
+            assertTrue("Three-button navigation must be enabled for this regression", maxOf(safe.bottom, safe.left, safe.right) >= 40 * density)
+            val origin = IntArray(2); decor.getLocationOnScreen(origin)
+            fun find(view: android.view.View, description: String): android.view.View? {
+                if (view.contentDescription?.toString() == description) return view
+                if (view is android.view.ViewGroup) for (i in 0 until view.childCount)
+                    find(view.getChildAt(i), description)?.let { return it }
+                return null
+            }
+            for (description in listOf("ё", ",", "Пробел", ".", "Новая строка")) {
+                val key = requireNotNull(find(root, description)) { "Missing bottom-row key: $description" }
+                val position = IntArray(2); key.getLocationOnScreen(position)
+                assertTrue("$description overlaps navigation at bottom", position[1] + key.height <= origin[1] + decor.height - safe.bottom)
+                assertTrue("$description overlaps navigation on left", position[0] >= origin[0] + safe.left)
+                assertTrue("$description overlaps navigation on right", position[0] + key.width <= origin[0] + decor.width - safe.right)
+                points.add(position[0] + key.width / 2 to position[1] + key.height - 3)
+            }
+            android.util.Log.i("RSK_IME_GEOMETRY", "nav_left=${safe.left} nav_right=${safe.right} nav_bottom=${safe.bottom} keyboard_bottom_padding=${root.paddingBottom}")
+        }
+        for ((x, y) in points) { assertTrue(device.click(x, y)); device.waitForIdle() }
+        scenario.onActivity { activity ->
+            val field = activity.findViewById<EditText>(R.id.demo_editor)
+            assertEquals("Every bottom-row key must work near its lower edge", "ё, .\n", field.text.toString())
+            field.setText("")
+        }
+    }
     @Before fun isolateLegacyCases() {
         ApplicationProvider.getApplicationContext<Context>().getSharedPreferences("keyboard", Context.MODE_PRIVATE)
             .edit().putBoolean("automatic_writing", false).commit()
@@ -137,6 +174,7 @@ class KeyboardTypingTest {
                 )
             }
 
+            checkBottomRow(device, scenario)
             for (key in listOf("с", "е", "в", "о", "д", "н", "я", "Пробел")) {
                 val button = findKey(key, 8_000)
                 assertNotNull("Missing Russian IME key: $key", button)

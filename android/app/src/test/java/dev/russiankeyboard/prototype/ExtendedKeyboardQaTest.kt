@@ -18,13 +18,14 @@ class ExtendedKeyboardQaTest(private val case: ExtendedCase) {
             assertArrayEquals(case.id, reference.ids, encoding.ids)
             assertEquals(case.id, reference.positions, encoding.words.map { it.firstToken })
             val start = System.nanoTime()
-            val output = PunctuationPlanner.plan(case.input, encoding, reference.predictions, PunctuationPlanner.Mode.FINALIZE)?.text ?: case.input
+            val output = PunctuationPlanner.plan(case.input, encoding, reference.predictions, PunctuationPlanner.Mode.FINALIZE, ordinaryWords)?.text ?: case.input
             ExtendedPhraseQa.run(case, output, System.nanoTime() - start)
         }
         report.rows.add(row)
         assertTrue("${case.id}: ${row["input"]} -> ${row["actual"]}; gold=${row["gold"]}", row["contract_passed"] == true)
     }
     companion object {
+        private val ordinaryWords by lazy { File(requireNotNull(System.getProperty("rsk.common")), "punctuation_lowercase.txt").readLines().toSet() }
         private val context = File(requireNotNull(System.getProperty("rsk.context")))
         private fun mapped(file: File) = file.inputStream().use { it.channel.map(FileChannel.MapMode.READ_ONLY, 0, file.length()) }
         private val morphology by lazy { MorphologyDictionary(mapped(File(context, "morphology.bin"))) }

@@ -83,12 +83,11 @@ class RussianKeyboardImeService : InputMethodService() {
         shifted = false
         letterButtons.clear()
         val keyboard = LinearLayout(this).apply {
+            id = R.id.keyboard_root
             orientation = LinearLayout.VERTICAL
-            // The navigation gesture inset can overlay the last IME row on some phones.
-            // Reserve extra touch space instead of letting the nav bar cover keys.
-            setPadding(dp(3), dp(4), dp(3), dp(30))
             setBackgroundColor(Color.rgb(218, 223, 231))
         }
+        KeyboardNavigationInsets.attach(keyboard, window?.window, dp(3), dp(4), dp(8))
 
         val suggestions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         suggestionButton = Button(this).apply {

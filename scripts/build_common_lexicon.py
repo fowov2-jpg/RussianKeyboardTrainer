@@ -106,11 +106,14 @@ Source and pinned hashes: manifest.json. Source frequency file and original noti
 OpenSubtitles tokenized source: http://opus.lingfil.uu.se/OpenSubtitles2016.php
 Dictionary verification: OpenCorpora CC BY-SA 3.0. See context/OpenCorpora-NOTICE.txt.
 Ambiguity exclusion uses existing pinned Leeds/Hunspell lexicons; see lexicon/NOTICE.txt.
+punctuation_lowercase.txt: dictionary-confirmed ordinary verbs/adverbs from the pinned FrequencyWords and OpenCorpora data, CC BY-SA 3.0. Rule and hashes: manifest.json casing_guard.
 No private conversations or messenger telemetry. Frequencies are a dialogue proxy.
 ''')
     source_ranks = {line.split()[0]: i + 1 for i, line in enumerate(SOURCE.read_text().splitlines())}
     (ROOT / 'data/frequency/common-targets.tsv').write_text('word\traw_frequency_rank\tcount\n' + ''.join(
         f'{word}\t{source_ranks[word]}\t{frequency[word]}\n' for word in words))
+    from build_punctuation_case_guard import main as build_case_guard
+    build_case_guard()
     print(json.dumps(metadata, ensure_ascii=False), flush=True)
 
 

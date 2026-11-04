@@ -31,7 +31,8 @@ class PunctuationDeviceTest {
                 assertEquals(expected, output)
             }
             for (text in listOf("Он инженер.", "Мы соседи.", "Нужно это проверить.",
-                "Спасибо, что позвонили.", "Я думаю, они коллеги.", "Хочу быть как ты.")) {
+                "Спасибо, что позвонили.", "Я думаю, они коллеги.", "Хочу быть как ты.",
+                "Нужно поднять коробку.", "Я буду помогать тебе.", "Завтра продолжим работу.")) {
                 for (mode in listOf(PunctuationPlanner.Mode.STREAMING, PunctuationPlanner.Mode.FINALIZE))
                     assertEquals(text, model.predict(text, mode = mode)?.text ?: text)
             }

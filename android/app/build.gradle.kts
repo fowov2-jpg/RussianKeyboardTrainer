@@ -22,8 +22,8 @@ android {
         applicationId = "dev.russiankeyboard.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.0.0-rc9"
+        versionCode = 11
+        versionName = "1.0.0-rc10"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -66,6 +66,7 @@ android {
             it.systemProperty("rsk.common", file("src/main/assets/common").absolutePath)
             it.systemProperty("rsk.contextReport", layout.buildDirectory.file("reports/context-runtime.json").get().asFile.absolutePath)
             it.inputs.dir(file("src/main/assets/context")).withPropertyName("contextAssets")
+            it.inputs.dir(file("src/main/assets/common")).withPropertyName("commonAssets")
             it.systemProperty("rsk.punctuation", file("src/main/assets/punctuation").absolutePath)
             it.systemProperty("rsk.extendedReport", layout.buildDirectory.dir("reports/extended-qa").get().asFile.absolutePath)
             it.inputs.dir(file("src/main/assets/punctuation")).withPropertyName("punctuationAssets")
