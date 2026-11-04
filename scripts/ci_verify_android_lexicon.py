@@ -76,7 +76,7 @@ def verify(report: Path, assets: Path, corpus: Path, apks: Path):
             for name in ('NOTICE.txt', 'manifest.json'):
                 if archive.read('assets/punctuation/' + name) != (punctuation_assets / name).read_bytes():
                     raise ValueError('Punctuation attribution mismatch: ' + name)
-            if any(any(fixture in name for fixture in ('lexicon_corpus','context_holdout','morphology_parity','punctuation_reference')) for name in archive.namelist()):
+            if any(any(fixture in name for fixture in ('lexicon_corpus','context_holdout','morphology_parity','punctuation_reference','extended_qa','extended_phrase_logits')) for name in archive.namelist()):
                 raise ValueError(f"Test corpus accidentally shipped in {apk}")
         print(f"Packaged lexicon OK: {apk.name}")
     return runtime

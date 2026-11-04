@@ -59,6 +59,9 @@ class LiveSpellingControllerTest {
         assertEquals("привт_", plan.edit!!.replacementWithSpace)
         assertNull(plan.checkpoint)
     }
+    @Test fun laterAmbiguousCandidateCancelsAnEarlierPrefixGuess() {
+        for (raw in listOf("оалета", "егоорк", "отдивной")) assertEquals(raw, raw, type(controller(), raw).first)
+    }
     @Test fun distinctRealIndexedErrorsNeverTurnIntoAnUnrelatedThirdWordWhileGrowing() {
         val baseline = RussianCorrectionEngine(morphology = { morphology }, lexicon = { lexicon })
         val selected = HashSet<String>(); var changed = 0

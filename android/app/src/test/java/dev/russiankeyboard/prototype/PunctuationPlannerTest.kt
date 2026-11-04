@@ -73,7 +73,19 @@ class PunctuationPlannerTest {
         val text = "как дела у"
         val encoded = tokenizer.encode(text, sentenceStart = false)
         val scores = encoded.words.map { PunctuationPlanner.Prediction(2, .99, .98, 0, .99) }
-        assertEquals("как Дела У", PunctuationPlanner.plan(text, encoded, scores, PunctuationPlanner.Mode.STREAMING)?.text)
+        assertNull(PunctuationPlanner.plan(text, encoded, scores, PunctuationPlanner.Mode.STREAMING))
         assertTrue(tokenizer.encode(List(300) { "клавиатура" }.joinToString(" ")).cutFront)
+    }
+    @Test fun casingRequiresARealSentenceBreakWhenModelPredictsOne() {
+        val predictions = listOf(PunctuationPlanner.Prediction(0, .99, .98, 0, .99),
+            PunctuationPlanner.Prediction(10, .99, .98, 0, .99))
+        val comma = "Спасибо, пожалуйста"
+        assertNull(PunctuationPlanner.plan(comma, tokenizer.encode(comma), predictions, PunctuationPlanner.Mode.STREAMING))
+        val period = "Спасибо. пожалуйста"
+        assertEquals("Спасибо. Пожалуйста", PunctuationPlanner.plan(period, tokenizer.encode(period), predictions, PunctuationPlanner.Mode.STREAMING)?.text)
+        val name = "я вижу анну"
+        val nameScores = listOf(PunctuationPlanner.Prediction(10, .99, .98, 0, .99),
+            PunctuationPlanner.Prediction(10, .99, .98, 1, .99), PunctuationPlanner.Prediction(10, .99, .98, 0, .99))
+        assertEquals("Я вижу Анну", PunctuationPlanner.plan(name, tokenizer.encode(name), nameScores, PunctuationPlanner.Mode.STREAMING)?.text)
     }
 }

@@ -56,6 +56,8 @@ jobs:
             android/app/build/reports/lint-results-debug.*
             android/app/build/reports/lexicon-runtime.json
             android/app/build/reports/context-runtime.json
+            android/app/build/reports/extended-qa/
+            android/app/src/sharedTest/fixtures/extended_qa_manifest.json
             android/app/src/main/assets/lexicon/manifest.json
             android/app/src/main/assets/context/manifest.json
           if-no-files-found: ignore

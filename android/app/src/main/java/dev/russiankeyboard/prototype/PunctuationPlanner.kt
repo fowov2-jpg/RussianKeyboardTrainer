@@ -48,8 +48,14 @@ object PunctuationPlanner {
             out.append(original, cursor, word.start)
             val prediction = predictions[index]
             var value = word.text
+            val previous = words.getOrNull(index - 1)
+            val predictedBoundary = index > 0 && predictions[index - 1].punctuation in setOf(0, 2, 3, 4, 8, 9)
+            val actualBoundary = previous == null || original.substring(previous.end, word.start).any { it in ".!?…\n" }
+            // Do not apply casing for a sentence break that was NOT inserted.
+            // In particular, keep lower-case words after a user's existing comma.
+            val consistentCase = !predictedBoundary || actualBoundary
             if (!word.protected && !word.preserveCase && !((encoding.cutFront || !encoding.sentenceStart) && index == 0)) {
-                if (prediction.casing == 0 && prediction.casingProbability >= .7) value = value.replaceFirstChar { it.uppercase() }
+                if (consistentCase && prediction.casing == 0 && prediction.casingProbability >= .7) value = value.replaceFirstChar { it.uppercase() }
                 if (prediction.casing == 2 && prediction.casingProbability >= .95 && value.length <= 5) value = value.uppercase()
             }
             out.append(value)

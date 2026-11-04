@@ -65,7 +65,23 @@ if grep -Eqi "unknown input method|cannot be" reports/emulator/ime-enable.txt re
 fi
 adb shell settings put secure show_ime_with_hard_keyboard 1
 adb logcat -c
-gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest
+if gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest; then
+  instrumentation_status=0
+else
+  instrumentation_status=$?
+fi
+# Public/synthetic QA only, written by ExtendedKeyboardDeviceTest; never user text.
+adb exec-out run-as "$APP" cat files/extended-qa-summary.json > reports/emulator/extended-qa-summary.json
+adb exec-out run-as "$APP" cat files/extended-qa-cases.tsv > reports/emulator/extended-qa-cases.tsv
+python - <<'PY'
+import json
+from pathlib import Path
+path=Path('reports/emulator/extended-qa-summary.json')
+report=json.loads(path.read_text())
+assert report['cases']==report['unique_inputs']==7500
+print('EXTENDED_ANDROID_QA_SUMMARY='+json.dumps(report,ensure_ascii=False))
+PY
+if [ "$instrumentation_status" -ne 0 ]; then exit "$instrumentation_status"; fi
 adb logcat -d -v brief -s RSK_PUNCT_BENCH:I '*:S' > reports/emulator/punctuation-benchmark.txt
 
 adb install -r "$APK"

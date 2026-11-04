@@ -36,8 +36,18 @@ class LiveSpellingController(
                 val original = if (key == " ") old.raw else raw
                 return Plan(null, RussianCorrectionEngine.Edit(original, shown, RussianCorrectionEngine.Reason.TYPO))
             }
-            val keep = key.all { it in 'а'..'я' || it in 'А'..'Я' || it in "ёЁ" } &&
-                conventional(raw) && !knownPrefix(raw) && knownPrefix(shown.substringAfterLast(' '))
+            val ordinary = key.all { it in 'а'..'я' || it in 'А'..'Я' || it in "ёЁ" } && conventional(raw) && !knownPrefix(raw)
+            val choices = if (ordinary) engine.suggestions(old.anchor + raw) else emptyList()
+            val fresh = choices.firstOrNull { it.automatic }?.edit?.replacementWithSpace?.trimEnd()
+            if (fresh != null) {
+                pending = Pending(raw, fresh, old.anchor)
+                return Plan(if (fresh == shown) null else RussianCorrectionEngine.Edit(shown, fresh, RussianCorrectionEngine.Reason.TYPO),
+                    RussianCorrectionEngine.Edit(raw, fresh, RussianCorrectionEngine.Reason.TYPO))
+            }
+            // A later letter can expose a competing complete-word candidate.
+            // Do not carry an earlier prefix guess past that new ambiguity.
+            val keep = ordinary && knownPrefix(shown.substringAfterLast(' ')) &&
+                choices.none { it.edit.replacementWithSpace.trimEnd() != shown }
             if (keep) {
                 pending = Pending(raw, shown, old.anchor)
                 return Plan(null, RussianCorrectionEngine.Edit(raw, shown, RussianCorrectionEngine.Reason.TYPO))

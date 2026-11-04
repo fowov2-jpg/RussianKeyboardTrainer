@@ -1,0 +1,31 @@
+{
+  "format": "extended-qa-v1",
+  "seed": "SHA256 extended-qa-v1:",
+  "cases": 7500,
+  "globally_unique_inputs": 7500,
+  "distinct_typo_targets": 2000,
+  "distinct_source_phrases": 1500,
+  "by_kind": {
+    "typo": 2000,
+    "word_keep": 2000,
+    "protected": 500,
+    "restore": 1500,
+    "phrase_keep": 1500
+  },
+  "sha256": "2fcb78ffcea5cc67f9b4983353b156b061c2e8f4054a29747ff14a080807611e",
+  "source_sha256": {
+    "lexicon_corpus.tsv.gz": "7f1dd99c304ba26a731d860364142fb0eb3bcacba8c1fe8b0f087dddba3330ba",
+    "morphology_parity.tsv.gz": "14519d529f2803004a38433e5447cf698a84925c77eeec59ae8a83923eba0924",
+    "context_holdout.tsv.gz": "9b93f72e0204082910ea7615c699fa7dec614094d88b4f47460f14f7cfc0eaf8"
+  },
+  "phrase_filter": "3..24 Cyrillic words, Cyrillic/whitespace/.,!?:; only, final .!?; unique lexical sentences; fixed hash ordering within strata",
+  "sources": {
+    "words": "existing licensed synthetic corpus + OpenCorpora reference fixture",
+    "phrases": "test-only lexical-group-disjoint Tatoeba holdout, 500 questions/500 comma/500 other statements",
+    "attribution": "sentence IDs link to https://tatoeba.org/en/sentences/show/ID; author attribution in main/assets/context/Tatoeba-AUTHORS.txt",
+    "licenses": "Tatoeba CC BY 2.0 FR; OpenCorpora CC BY-SA 3.0; word sources see main/assets/lexicon/NOTICE.txt"
+  },
+  "scope": "7500 distinct inputs; synthetic typos and corpus annotations, not a representative human-error benchmark; pretrained model train overlap unknown",
+  "reference_logits_sha256": "7456ee2924378a6181542adaf12913f7ae251c149af22d0fdde5cf667dba460f",
+  "reference_model_sha256": "b105da023474d98aa13ba18953ae67b04b17bd0595034bc06030c17536893933"
+}

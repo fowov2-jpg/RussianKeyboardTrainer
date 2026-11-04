@@ -22,8 +22,8 @@ android {
         applicationId = "dev.russiankeyboard.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.0.0-rc5"
+        versionCode = 7
+        versionName = "1.0.0-rc6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -38,6 +38,12 @@ android {
         // AssetFileDescriptor + mmap require an uncompressed APK entry.
         noCompress += "bin"
     }
+    sourceSets {
+        getByName("test").java.srcDir("src/sharedTest/java")
+        getByName("test").resources.srcDir("src/sharedTest/fixtures")
+        getByName("androidTest").java.srcDir("src/sharedTest/java")
+        getByName("androidTest").assets.srcDir("src/sharedTest/fixtures")
+    }
     testOptions {
         unitTests.all {
             it.systemProperty("rsk.lexicon", file("src/main/assets/lexicon/russian.bin").absolutePath)
@@ -48,6 +54,7 @@ android {
             it.systemProperty("rsk.contextReport", layout.buildDirectory.file("reports/context-runtime.json").get().asFile.absolutePath)
             it.inputs.dir(file("src/main/assets/context")).withPropertyName("contextAssets")
             it.systemProperty("rsk.punctuation", file("src/main/assets/punctuation").absolutePath)
+            it.systemProperty("rsk.extendedReport", layout.buildDirectory.dir("reports/extended-qa").get().asFile.absolutePath)
             it.inputs.dir(file("src/main/assets/punctuation")).withPropertyName("punctuationAssets")
             it.outputs.file(layout.buildDirectory.file("reports/lexicon-runtime.json"))
             it.outputs.file(layout.buildDirectory.file("reports/context-runtime.json"))
