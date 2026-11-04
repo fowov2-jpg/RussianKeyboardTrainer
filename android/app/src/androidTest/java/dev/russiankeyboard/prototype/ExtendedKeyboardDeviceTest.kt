@@ -15,7 +15,7 @@ import org.junit.runner.RunWith
 class ExtendedKeyboardDeviceTest {
     @Test fun diverseWordsAndNaturalPhrasesOnActualAndroidRuntime() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val cases = ExtendedCase.read(InstrumentationRegistry.getInstrumentation().context.assets.open("extended_qa.tsv.gz"))
+        val cases = ExtendedCase.read(InstrumentationRegistry.getInstrumentation().context.assets.open("extended_qa.tsv"))
         fun mapped(name: String) = context.assets.openFd(name).use { asset -> asset.createInputStream().use {
             it.channel.map(FileChannel.MapMode.READ_ONLY, asset.startOffset, asset.declaredLength) } }
         val morphology = MorphologyDictionary(mapped("context/morphology.bin"))

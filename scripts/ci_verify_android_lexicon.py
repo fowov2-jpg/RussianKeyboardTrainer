@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import zipfile
+import gzip
 from pathlib import Path
 
 
@@ -44,6 +45,11 @@ def verify(report: Path, assets: Path, corpus: Path, apks: Path):
     apk_files = sorted(apks.glob("*.apk"))
     if not apk_files:
         raise ValueError("No APKs to verify")
+    test_apk = apks.parent / 'androidTest/debug/app-debug-androidTest.apk'
+    fixture = assets.parents[2] / 'sharedTest/fixtures/extended_qa.tsv.gz'
+    with zipfile.ZipFile(test_apk) as archive:
+        if archive.read('assets/extended_qa.tsv') != gzip.decompress(fixture.read_bytes()):
+            raise ValueError('Android test APK must contain the complete expanded QA fixture')
     for apk in apk_files:
         with zipfile.ZipFile(apk) as archive:
             entry = archive.getinfo("assets/lexicon/russian.bin")

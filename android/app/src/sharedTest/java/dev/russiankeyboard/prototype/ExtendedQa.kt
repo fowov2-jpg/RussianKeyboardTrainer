@@ -9,14 +9,21 @@ import java.security.MessageDigest
 data class ExtendedCase(val id: String, val kind: String, val input: String, val expected: String,
                         val reference: String, val provenance: String) {
     companion object {
-        fun read(source: InputStream): List<ExtendedCase> = GZIPInputStream(source).bufferedReader().use { reader ->
-            reader.readLine()
-            reader.lineSequence().map { line ->
-                val f = line.split('\t')
-                fun text(value: String) = String(Base64.getDecoder().decode(value), Charsets.UTF_8)
-                ExtendedCase(f[0], f[1], text(f[2]), text(f[3]), f[4], f[5])
-            }.toList().also {
-                require(it.size == 7500 && it.map { case -> case.input }.toSet().size == 7500)
+        fun read(source: InputStream): List<ExtendedCase> {
+            val buffered = source.buffered()
+            buffered.mark(2)
+            val compressed = buffered.read() == 31 && buffered.read() == 139
+            buffered.reset()
+            // aapt transparently expands .gz assets and strips their extension.
+            return (if (compressed) GZIPInputStream(buffered) else buffered).bufferedReader().use { reader ->
+                reader.readLine()
+                reader.lineSequence().map { line ->
+                    val f = line.split('\t')
+                    fun text(value: String) = String(Base64.getDecoder().decode(value), Charsets.UTF_8)
+                    ExtendedCase(f[0], f[1], text(f[2]), text(f[3]), f[4], f[5])
+                }.toList().also {
+                    require(it.size == 7500 && it.map { case -> case.input }.toSet().size == 7500)
+                }
             }
         }
     }

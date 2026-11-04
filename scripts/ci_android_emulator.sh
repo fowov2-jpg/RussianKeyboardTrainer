@@ -73,11 +73,15 @@ fi
 # Public/synthetic QA only, written by ExtendedKeyboardDeviceTest; never user text.
 adb exec-out run-as "$APP" cat files/extended-qa-summary.json > reports/emulator/extended-qa-summary.json
 adb exec-out run-as "$APP" cat files/extended-qa-cases.tsv > reports/emulator/extended-qa-cases.tsv
-python - <<'PY'
-import json
+python - "$instrumentation_status" <<'PY'
+import json,sys
 from pathlib import Path
 path=Path('reports/emulator/extended-qa-summary.json')
-report=json.loads(path.read_text())
+try:
+    report=json.loads(path.read_text())
+except (OSError, ValueError):
+    print('Extended QA report missing; original instrumentation failure is preserved.')
+    raise SystemExit(0 if int(sys.argv[1]) else 1)
 assert report['cases']==report['unique_inputs']==7500
 print('EXTENDED_ANDROID_QA_SUMMARY='+json.dumps(report,ensure_ascii=False))
 PY
