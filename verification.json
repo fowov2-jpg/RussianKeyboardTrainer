@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0-rc10",
+  "versionCode": 11,
+  "source_commit": "8bee61f344db362db30544251c6f329e41966342",
+  "apk_sha256": "f15611208909311ab47775bde19482ab013bf8da53458b00f0c520ee9368aef5",
+  "same_signature_as_local_rc8": true,
+  "requested_permissions": [],
+  "full_visible_chat_service_retained": true,
+  "local_checks": "25611 JUnit, lint, three ABI build, Android tests compile, packaged assets, signature and alignment passed",
+  "android_navigation_touch_test": "pending CI execution",
+  "physical_POCO_check": "pending user installation",
+  "casing_guard": {
+    "file": "punctuation_lowercase.txt",
+    "words": 14412,
+    "sha256": "00434dab11464f313e7f9d2fcdaf3aca8565afa9480a56352cfed9352ee49248",
+    "license": "CC BY-SA 3.0",
+    "source": "Pinned FrequencyWords Russian and OpenCorpora via pymorphy3-dicts-ru 2.4.417150.4580142",
+    "dictionary_files": {
+      "words.dawg": "ae4381a9d6e4e636309ac1a242e480a9470a05723f6673d5fcc3fcf293aa8a9e",
+      "gramtab-opencorpora-int.json": "1a72703ac84c16572deee6a92779a322b59763cbc336021433d52c33160fa05b",
+      "paradigms.array": "dfc465558f1a2760bbde6fa89f0447a5c93896da429efe658fe2f0638954758b"
+    },
+    "rule": "Every dictionary analysis must be known VERB/INFN/ADVB/GRND, without proper-name or abbreviation tags. No QA output selection."
+  }
+}
