@@ -49,7 +49,13 @@ def decode_dictionary(raw: bytes) -> str:
                 header = raw[:offset].decode("ascii").strip()
                 body = raw[offset:].decode("utf-16")
                 return header + "\n" + body if header else body
-        raise ValueError("Unsupported dictionary text encoding (no UTF-16 BOM)")
+        # The pinned Hunspell .dic from Goudron is published in KOI8-R:
+        # its first Cyrillic capital Ч is 0xFE, not a UTF-16 BOM.
+        text = raw.decode("koi8-r")
+        lines = text.splitlines()
+        if len(lines) >= 2 and lines[0].isdecimal() and any("\u0400" <= c <= "\u052f" for c in lines[1]):
+            return text
+        raise ValueError("Unsupported dictionary text encoding")
 
 
 def verified_source(url: str, sha: str, path: Path) -> str:
