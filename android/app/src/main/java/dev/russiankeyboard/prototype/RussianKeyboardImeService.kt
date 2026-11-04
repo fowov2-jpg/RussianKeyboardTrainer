@@ -151,6 +151,14 @@ class RussianKeyboardImeService : InputMethodService() {
             undo.clear()
             return false
         }
+        // A matching prefix is insufficient when the caret has moved inside
+        // a word or identifier: undo must not rewrite a partial token.
+        val after = connection.getTextAfterCursor(1, 0)?.toString()
+        if (after == null || (after.isNotEmpty() && (after[0].isLetterOrDigit() ||
+                    after[0] == '_' || after[0] == '-'))) {
+            undo.clear()
+            return false
+        }
         // Revalidate the suffix; never blindly undo an old correction.
         val current = connection.getTextBeforeCursor(count, 0)?.toString()
         val previous = undo.takeIfMatching(current) ?: return false

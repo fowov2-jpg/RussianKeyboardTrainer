@@ -103,6 +103,28 @@ class KeyboardTypingTest {
                 assertEquals("севодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
             }
 
+            // A pending Undo must not rewrite a prefix if the caret has moved
+            // before a letter. Backspace should only delete the preceding space.
+            for (key in listOf("с", "е", "в", "о", "д", "н", "я", "Пробел")) {
+                val button = findKey(key, 8_000)
+                assertNotNull("Missing Russian IME key: $key", button)
+                button!!.click()
+                device.waitForIdle()
+            }
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("сегодня тест")
+                field.setSelection("сегодня ".length)
+            }
+            val midWordUndo = findKey("Удалить", 8_000) ?: findKey("⌫", 1_500)
+            assertNotNull("Backspace key missing in Undo caret regression", midWordUndo)
+            midWordUndo!!.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("сегоднятест",
+                    activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+
             // A caret inside a word must not autocorrect the preceding prefix.
             // Pressing space should only split the word at the caret.
             scenario.onActivity { activity ->
