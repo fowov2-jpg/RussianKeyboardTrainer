@@ -1,0 +1,2 @@
+8ec1a462d08c3c317352565d3a7bd7383543ce873833069c70c30ff468aa2912  RussianKeyboard-1.0.0-rc8-ARM64.zip
+9aef78700a16471ded8e8e6104fdc757aebe9f4426c693c0dc0d89379cbf1d23  RussianKeyboard-1.0.0-rc8-ARM32.zip
