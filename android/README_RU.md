@@ -15,7 +15,7 @@ GitHub проверяет через четыре workflow: `validate` (Python �
 gradle -p android --no-daemon testDebugUnitTest assembleDebug
 ```
 
-После успешного GitHub Actions `android-build` debug APK доступен в Artifacts.
+После успешного GitHub Actions `android-build` debug APK доступен в Artifacts. CI также требует ≥10 000 отдельных успешно исполненных JUnit-сценариев, проверяя их по XML-отчёту. Тестовые контексты производятся из 585 исходных синтетических примеров и не являются независимым корпусом ошибок.
 Путь сборки: `android/app/build/outputs/apk/debug/`. В GitHub Artifacts лежат отдельные APK: `app-arm64-v8a-debug.apk` (большинство современных ARM64), `app-armeabi-v7a-debug.apk` (старые 32-bit ARM) и `app-x86_64-debug.apk` (эмулятор). Выбирай APK под архитектуру телефона.
 
 ## Использование

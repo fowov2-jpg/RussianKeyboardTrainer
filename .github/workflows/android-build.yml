@@ -40,11 +40,11 @@ jobs:
       # This detects Kotlin errors in androidTest before slow AVD workflows run.
       - name: Unit tests, Android lint, APK and instrumentation compile
         run: gradle -p android --no-daemon --max-workers=2 testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
-      - name: Require 400+ distinct word/sentence regression tests
+      - name: Require 10000+ distinct word/sentence regression tests
         run: |
           python3 scripts/ci_verify_android_corpus.py \
             --reports android/app/build/test-results/testDebugUnitTest \
-            --minimum 400 --summary "$GITHUB_STEP_SUMMARY"
+            --minimum 10000 --summary "$GITHUB_STEP_SUMMARY"
       - name: Upload unit and lint reports
         if: always()
         uses: actions/upload-artifact@v4

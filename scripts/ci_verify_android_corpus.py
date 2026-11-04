@@ -11,7 +11,7 @@ from xml.etree import ElementTree as ET
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--reports", type=Path, required=True)
-    ap.add_argument("--minimum", type=int, default=400)
+    ap.add_argument("--minimum", type=int, default=10000)
     ap.add_argument("--summary", type=Path)
     args = ap.parse_args()
 
