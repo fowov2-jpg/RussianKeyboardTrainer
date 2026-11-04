@@ -35,9 +35,26 @@ def blob_hash(data: bytes) -> str:
     return hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
 
 
+def decode_dictionary(raw: bytes) -> str:
+    """Some Hunspell mirrors use a UTF-16 BOM after an ASCII word count.
+
+    Validate raw Git blob bytes first; this only affects text decoding.
+    """
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        for bom in (b"\xff\xfe", b"\xfe\xff"):
+            offset = raw.find(bom, 0, 32)
+            if offset >= 0:
+                header = raw[:offset].decode("ascii").strip()
+                body = raw[offset:].decode("utf-16")
+                return header + "\n" + body if header else body
+        raise ValueError("Unsupported dictionary text encoding (no UTF-16 BOM)")
+
+
 def verified_source(url: str, sha: str, path: Path) -> str:
     if path.exists() and blob_hash(path.read_bytes()) == sha:
-        return path.read_text(encoding="utf-8-sig")
+        return decode_dictionary(path.read_bytes())
     for attempt in range(4):
         try:
             with urlopen(Request(url, headers={"User-Agent": "RussianKeyboardTrainer-QA"}), timeout=90) as r:
@@ -46,7 +63,7 @@ def verified_source(url: str, sha: str, path: Path) -> str:
                 raise ValueError("Source blob hash mismatch: fail closed")
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(raw)
-            return raw.decode("utf-8-sig")
+            return decode_dictionary(raw)
         except (HTTPError, URLError, TimeoutError):
             if attempt == 3:
                 raise

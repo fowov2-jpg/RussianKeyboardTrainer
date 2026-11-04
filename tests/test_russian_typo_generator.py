@@ -5,10 +5,14 @@ import tempfile
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from build_russian_typos import blob_hash, select_words, NEIGHBORS, create_pairs, variants
+from build_russian_typos import blob_hash, decode_dictionary, select_words, NEIGHBORS, create_pairs, variants
 
 
 class RussianTypoGeneratorTest(unittest.TestCase):
+    def test_dictionary_utf16_with_ascii_header(self):
+        sample = b"575484\\n" + "\\ufeffсловарь\\nслово\\n".encode("utf-16-le")
+        self.assertEqual(decode_dictionary(sample).splitlines()[:2], ["575484", "словарь"])
+
     def test_git_blob_id(self):
         self.assertEqual(blob_hash(b"hello"), "b6fc4c620b67d95f953a5c1c1230aaab5db5a1b0")
 
