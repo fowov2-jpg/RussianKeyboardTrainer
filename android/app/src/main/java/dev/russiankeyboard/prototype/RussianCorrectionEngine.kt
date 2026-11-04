@@ -39,7 +39,7 @@ class RussianCorrectionEngine {
             for (length in 1..word.length) {
                 val prefix = word.substring(0, length)
                 val existing = get(prefix).orEmpty()
-                if (existing.size < 8) put(prefix, existing + word)
+                put(prefix, existing + word)
             }
         }
     }
