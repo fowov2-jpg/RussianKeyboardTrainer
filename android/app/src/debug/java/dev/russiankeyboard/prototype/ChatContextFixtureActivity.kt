@@ -11,6 +11,8 @@ import android.widget.TextView
 class ChatContextFixtureActivity : Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(TextView(this@ChatContextFixtureActivity).apply { id = R.id.conversation_title; text = "Анна"; textSize = 24f })

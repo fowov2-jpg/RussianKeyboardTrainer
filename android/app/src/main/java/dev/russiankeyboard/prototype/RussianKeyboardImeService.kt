@@ -597,7 +597,17 @@ class RussianKeyboardImeService : InputMethodService() {
         super.onDestroy()
     }
 
-    override fun onWindowShown() { super.onWindowShown(); bindConversation(); refreshSuggestion() }
+    override fun onWindowShown() {
+        super.onWindowShown()
+        // InputMethodService updates its shown-state after this callback. Bind
+        // on the next UI turn, including an empty editor before the first key.
+        handler.post { if (isInputViewShown) refreshSuggestion() }
+    }
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        val started = session
+        handler.post { if (session == started && isInputViewShown) refreshSuggestion() }
+    }
 
     private fun punctuation(): OnDevicePunctuator {
         punctuator?.let { return it }

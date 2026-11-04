@@ -9,6 +9,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Configurator
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.Until
 import android.app.UiAutomation
 import org.junit.Assert.*
 import org.junit.Test
@@ -38,12 +40,18 @@ class ConversationDeviceTest {
             device.executeShellCommand("ime enable ${app.packageName}/.RussianKeyboardImeService")
             device.executeShellCommand("ime set ${app.packageName}/.RussianKeyboardImeService")
             ActivityScenario.launch(ChatContextFixtureActivity::class.java).use { scenario ->
-                scenario.onActivity { activity ->
-                    val field = activity.findViewById<EditText>(R.id.demo_editor)
-                    field.requestFocus()
-                    field.post { (activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(field, InputMethodManager.SHOW_IMPLICIT) }
+                for (attempt in 0..2) {
+                    scenario.onActivity { activity ->
+                        val field = activity.findViewById<EditText>(R.id.demo_editor)
+                        field.requestFocus()
+                        field.post { (activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(field, InputMethodManager.SHOW_IMPLICIT) }
+                    }
+                    if (device.wait(Until.hasObject(By.desc("Пробел").pkg(app.packageName)), 5_000)) break
                 }
-                await("Visible conversation was not captured from the active application") {
+                assertTrue("IME never became visible in the synthetic chat", device.hasObject(By.desc("Пробел").pkg(app.packageName)))
+                await("IME did not bind a non-sensitive context session") { ConversationContext.active != null }
+                ConversationAccessibilityService.refresh()
+                await("Visible conversation was not captured from the active application (serviceConnected=${ConversationContext.connected})") {
                     ConversationContext.snapshot()?.let { it.title == "Анна" && "Когда пришлёшь документы?" in it.messages } == true
                 }
                 scenario.onActivity { it.findViewById<EditText>(R.id.sensitive_editor).requestFocus() }
