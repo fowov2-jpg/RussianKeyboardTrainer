@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - fix/ime-touch-engine-v0.8
+      - fix/keyboard-left-thumb-v0.9
     paths:
       - '.github/workflows/offline-smart-keyboard-apk.yml'
       - 'android/offline-smart-keyboard/**'
@@ -39,14 +39,14 @@ jobs:
       - name: Install Android API 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Build installable debug APK
+      - name: Run typo regression tests and build debug APK
         working-directory: android/offline-smart-keyboard
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+        run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: OfflineSmartKeyboard-v0.8-debug-apk
+          name: OfflineSmartKeyboard-v0.9-debug-apk
           path: android/offline-smart-keyboard/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
