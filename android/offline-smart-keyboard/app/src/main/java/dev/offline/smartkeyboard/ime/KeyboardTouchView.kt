@@ -29,6 +29,7 @@ internal class KeyboardTouchView(
     private val keys = ArrayList<Key>(48)
     private val downKeys = HashMap<Int, Key>()
     private val repeats = HashMap<Int, Runnable>()
+    private val longPressConsumed = HashSet<Int>()
     private val handler = Handler(Looper.getMainLooper())
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -132,7 +133,8 @@ internal class KeyboardTouchView(
 
         var y = top + strip
         if (!numericMode) {
-            row("йцукенгшщзхъ".map { it.toString() to 1f }, y)
+            // Eleven keys instead of twelve: larger targets for single-thumb typing.
+            row("йцукенгшщзх".map { it.toString() to 1f }, y)
             y += rowH
             row("фывапролджэ".map { it.toString() to 1f }, y, dp(10).toFloat())
             y += rowH
@@ -242,6 +244,16 @@ internal class KeyboardTouchView(
                         }
                         repeats[id] = repeat
                         handler.postDelayed(repeat, 430L)
+                    } else if (key.code == "CHAR:ь" || key.code == "CHAR:е") {
+                        // Keep ъ and ё available despite the compact visible layout.
+                        val hold = Runnable {
+                            if (downKeys[id] == key) {
+                                longPressConsumed.add(id)
+                                dispatch(if (key.code == "CHAR:ь") "CHAR:ъ" else "CHAR:ё")
+                            }
+                        }
+                        repeats[id] = hold
+                        handler.postDelayed(hold, 500L)
                     }
                 }
                 invalidate()
@@ -250,8 +262,9 @@ internal class KeyboardTouchView(
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 val key = downKeys.remove(id)
                 repeats.remove(id)?.let { handler.removeCallbacks(it) }
+                val consumed = longPressConsumed.remove(id)
                 invalidate()
-                if (key != null && key.code != "DELETE") {
+                if (key != null && key.code != "DELETE" && !consumed) {
                     // Exactly one text event for each completed finger tap.
                     dispatch(key.code)
                     performClick()
@@ -262,6 +275,7 @@ internal class KeyboardTouchView(
                 downKeys.clear()
                 repeats.values.forEach { handler.removeCallbacks(it) }
                 repeats.clear()
+                longPressConsumed.clear()
                 invalidate()
                 return true
             }
@@ -279,6 +293,7 @@ internal class KeyboardTouchView(
         repeats.values.forEach { handler.removeCallbacks(it) }
         repeats.clear()
         downKeys.clear()
+        longPressConsumed.clear()
         super.onDetachedFromWindow()
     }
 }
