@@ -50,7 +50,7 @@ class BlockSearchCorrector(
                 }
                 // Two wrongly touched groups may occur in a single word. The
                 // index keeps lookup local instead of expanding all letters.
-                if (code.length in 4..14) {
+                if (entry.frequency >= 10_000 && code.length in 4..14) {
                     for (i in 0 until code.length - 1) {
                         for (j in i + 1 until code.length) {
                             doubleMaskedCodes.getOrPut(mask2(code, i, j)) { ArrayList() }.add(entry)
@@ -65,7 +65,7 @@ class BlockSearchCorrector(
                 }
                 // Bound memory on long words. A future full dictionary should use a
                 // compact/truncated deletion index instead of expanding unlimited pairs.
-                if (word.length in 6..16) {
+                if (entry.frequency >= 10_000 && word.length in 6..16) {
                     for (i in 0 until word.length - 1) {
                         for (j in i + 1 until word.length) {
                             val key = buildString(word.length - 2) {
