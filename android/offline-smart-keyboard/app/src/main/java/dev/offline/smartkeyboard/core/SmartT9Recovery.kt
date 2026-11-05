@@ -37,14 +37,20 @@ internal class SmartT9Recovery(private val shards: NineBlockIndex) {
         }
     }
 
-    /** Progressive retrieval. The caller deduplicates words and limits ranking work. */
+    /** Complete retrieval used by index tests. */
     fun collect(code: String, add: (FastCorrector.Entry) -> Unit) {
         if (code.length !in 2..24 || code.any { it !in '1'..'9' }) return
-
-        // 0-2 replaced digits, including an incorrect first digit:
-        // 264236 -> 564236 -> привет.
+        // 0-2 replaced digits, including an incorrect first digit.
         shards.collect(code, add)
+        collectFallback(code, add)
+    }
 
+    /**
+     * Deeper path only when baseline ranked candidates are not reliable.
+     * This avoids degrading established corrections on the larger dictionary.
+     */
+    fun collectFallback(code: String, add: (FastCorrector.Entry) -> Unit) {
+        if (code.length !in 2..24 || code.any { it !in '1'..'9' }) return
         // The user omitted one/two keys:
         // 64236 -> 564236, by a preindexed code with its first digit removed.
         oneMissing[code]?.forEach(add)
