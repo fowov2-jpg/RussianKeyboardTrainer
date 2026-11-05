@@ -30,8 +30,7 @@ class OfflineKeyboardService : InputMethodService() {
     private var predictionRevision = 0L
     private val ru = Locale.forLanguageTag("ru-RU")
     private val original = StringBuilder()
-    private val suggestionButtons = mutableListOf<Button>()
-    private val letterButtons = mutableListOf<Pair<Button, Char>>()
+    private var keyboardView: KeyboardTouchView? = null
     private var suggestions: List<BlockSearchCorrector.Suggestion> = emptyList()
     private var lastPrediction: BlockSearchCorrector.Decision? = null
     private var predictedWord: String? = null
@@ -152,174 +151,45 @@ class OfflineKeyboardService : InputMethodService() {
         numeric = false
     }
 
-    override fun onCreateInputView(): View = makeKeyboard()
+    override fun onCreateInputView(): View {
+        return KeyboardTouchView(this, ::onKeyboardAction).also {
+            keyboardView = it
+            updateSuggestions()
+        }
+    }
 
-    private fun makeKeyboard(): View {
-        suggestionButtons.clear()
-        letterButtons.clear()
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            // On Android 15+ a three-button navigation bar can overlay an IME.
-            // Reserve a safe area immediately, even before the first inset dispatch.
-            val initialSafeBottom = if (Build.VERSION.SDK_INT >= 35) dp(52) else 0
-            setPadding(dp(3), dp(3), dp(3), dp(4) + initialSafeBottom)
-            setBackgroundColor(Color.rgb(215, 220, 229))
-        }
-        // Use the system-provided nav/tappable insets if they are available.
-        // A 52dp fallback protects the bottom row on OEM IME windows where
-        // navigation insets are consumed before reaching the input view.
-        if (Build.VERSION.SDK_INT >= 30) {
-            root.setOnApplyWindowInsetsListener { view, insets ->
-                val navBottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom
-                val touchBottom = insets.getInsets(WindowInsets.Type.tappableElement()).bottom
-                val knownInset = maxOf(navBottom, touchBottom)
-                val safeBottom = when {
-                    knownInset > 0 -> knownInset
-                    Build.VERSION.SDK_INT >= 35 -> dp(52)
-                    else -> 0
-                }
-                val requiredPadding = dp(4) + safeBottom
-                if (view.paddingBottom != requiredPadding) {
-                    view.setPadding(dp(3), dp(3), dp(3), requiredPadding)
-                }
-                insets
-            }
-            root.post { root.requestApplyInsets() }
-        }
-
-        // Gboard-like thin suggestion strip, never three empty giant keys.
-        val suggestionRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-        }
-        repeat(3) { index ->
-            val button = key("", 1f, 39, suggestion = true) { choose(index) }
-            suggestionButtons.add(button)
-            suggestionRow.addView(button)
-        }
-        root.addView(suggestionRow)
-
-        if (!numeric) {
-            for (line in listOf("йцукенгшщзхъ", "фывапролджэ")) {
-                val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-                for (letter in line) {
-                    val button = key(letter.toString(), 1f, 53) { press(letter) }
-                    letterButtons.add(button to letter)
-                    row.addView(button)
-                }
-                root.addView(row)
-            }
-            val third = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            third.addView(key("⇧", 1.35f, 53, special = true) {
+    private fun onKeyboardAction(code: String) {
+        when {
+            code.startsWith("CHAR:") -> code.removePrefix("CHAR:").singleOrNull()?.let(::press)
+            code.startsWith("SUGGEST:") ->
+                code.removePrefix("SUGGEST:").toIntOrNull()?.let(::choose)
+            code == "DELETE" -> backspace()
+            code == "SHIFT" -> {
                 shift = !shift
                 updateShiftLabels()
-            })
-            for (letter in "ячсмитьбю") {
-                val button = key(letter.toString(), 1f, 53) { press(letter) }
-                letterButtons.add(button to letter)
-                third.addView(button)
             }
-            third.addView(key("⌫", 1.35f, 53, special = true, repeating = true) { backspace() })
-            root.addView(third)
-        } else {
-            // Three compact rows like a normal phone keyboard; no screen-high numpad.
-            for (line in listOf("1234567890", "@#%&*-+/:")) {
-                val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-                for (symbol in line) row.addView(key(symbol.toString(), 1f, 53) { press(symbol) })
-                root.addView(row)
-            }
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            for (symbol in "(),!?;'") row.addView(key(symbol.toString(), 1f, 53) { press(symbol) })
-            row.addView(key("⌫", 1.6f, 53, special = true, repeating = true) { backspace() })
-            root.addView(row)
-        }
-
-        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        controls.addView(key(if (numeric) "АБВ" else "?123", 1.25f, 51, special = true) {
-            finishWord()
-            numeric = !numeric
-            redraw()
-        })
-        controls.addView(key(",", .65f, 51, special = true) { punctuation(",") })
-        controls.addView(key("Русский", 4.2f, 51) { space() }.apply { textSize = 14f })
-        controls.addView(key(".", .65f, 51, special = true) { punctuation(".") })
-        controls.addView(key("↵", 1.25f, 51, special = true) { enter() })
-        root.addView(controls)
-        updateSuggestions()
-        return root
-    }
-
-    private fun updateShiftLabels() {
-        for ((button, letter) in letterButtons) {
-            button.text = if (shift) letter.uppercaseChar().toString() else letter.toString()
-        }
-    }
-
-    private fun dp(value: Int) = (value * resources.displayMetrics.density + .5f).toInt()
-
-    private fun key(
-        label: String,
-        weight: Float,
-        heightDp: Int,
-        special: Boolean = false,
-        suggestion: Boolean = false,
-        repeating: Boolean = false,
-        action: () -> Unit
-    ): Button = Button(this).apply {
-        text = label
-        textSize = if (suggestion) 15f else if (label.length > 3) 14f else 20f
-        isAllCaps = false
-        gravity = Gravity.CENTER
-        setTextColor(Color.rgb(35, 41, 53))
-        setPadding(0, 0, 0, 0)
-        minWidth = 0
-        minimumWidth = 0
-        minHeight = 0
-        minimumHeight = 0
-        stateListAnimator = null
-        elevation = 0f
-        background = GradientDrawable().apply {
-            setColor(
-                when {
-                    suggestion -> Color.TRANSPARENT
-                    special -> Color.rgb(185, 195, 213)
-                    else -> Color.rgb(250, 251, 253)
-                }
-            )
-            cornerRadius = dp(if (suggestion) 0 else 5).toFloat()
-        }
-        layoutParams = LinearLayout.LayoutParams(0, dp(heightDp), weight).apply {
-            setMargins(dp(1), dp(if (suggestion) 0 else 2), dp(1), dp(if (suggestion) 0 else 2))
-        }
-        setOnClickListener { action() }
-        // Android's regular Button click occurs on ACTION_UP and can be lost when
-        // the thumb slides a few pixels. Register the key on ACTION_DOWN instead.
-        val repeatAction = object : Runnable {
-            override fun run() {
-                if (isPressed) {
-                    action()
-                    uiHandler.postDelayed(this, 65L)
-                }
-            }
-        }
-        setOnTouchListener { button, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    button.isPressed = true
-                    button.performClick()
-                    if (repeating) uiHandler.postDelayed(repeatAction, 400L)
-                    true
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    button.isPressed = false
-                    uiHandler.removeCallbacks(repeatAction)
-                    true
-                }
-                else -> true
+            code == "SPACE" -> space()
+            code == "COMMA" -> punctuation(",")
+            code == "PERIOD" -> punctuation(".")
+            code == "ENTER" -> enter()
+            code == "MODE" -> {
+                finishWord()
+                numeric = !numeric
+                redraw()
             }
         }
     }
 
-    private fun redraw() = setInputView(makeKeyboard())
+    private fun redraw() {
+        keyboardView?.update(
+            modeNumeric = numeric,
+            shift = shift,
+            words = suggestions.map { capitalize(it.word, capitalizeWord) },
+            current = if (original.isEmpty()) "" else capitalize(original.toString(), capitalizeWord)
+        )
+    }
+
+    private fun updateShiftLabels() = redraw()
 
     private fun press(char: Char) {
         if (numeric || !char.isLetter()) {
@@ -380,22 +250,16 @@ class OfflineKeyboardService : InputMethodService() {
         updateSuggestions()
     }
 
-    private fun updateSuggestions() {
-        suggestionButtons.forEachIndexed { index, button ->
-            val word = suggestions.getOrNull(index)?.word
-            button.text = if (word != null) capitalize(word, capitalizeWord)
-                else if (index == 1) {
-                    if (original.isEmpty()) "RU"
-                    else capitalize(original.toString(), capitalizeWord)
-                } else ""
-            button.isEnabled = word != null
-        }
-    }
+    private fun updateSuggestions() = redraw()
 
     private fun finishWord(): String? {
         if (original.isEmpty()) return null
         val source = capitalize(original.toString(), capitalizeWord)
-        val decision = if (predictedWord == original.toString()) lastPrediction else null
+        // A fast typist may press space before the delayed suggestion completes.
+        // Always run the cheap dictionary lookup at the word boundary.
+        val decision = if (!autocorrectEnabled) null
+            else if (predictedWord == original.toString()) lastPrediction
+            else engine.decide(original.toString(), previousWord)
         var corrected = capitalize(decision?.text ?: original.toString(), capitalizeWord)
         if (!replaceCurrentWord(source, corrected)) corrected = source
         invalidatePrediction()
