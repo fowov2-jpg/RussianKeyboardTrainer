@@ -24,7 +24,8 @@ import java.util.concurrent.Executors
 
 /** Normal touchscreen QWERTY; 2..9 blocks are used ONLY inside word retrieval. */
 class OfflineKeyboardService : InputMethodService() {
-    private lateinit var engine: BlockSearchCorrector
+    @Volatile private lateinit var engine: BlockSearchCorrector
+    @Volatile private var destroyed = false
     private val uiHandler = Handler(Looper.getMainLooper())
     private val predictionWorker = Executors.newSingleThreadExecutor()
     private var pendingPrediction: Runnable? = null
@@ -57,7 +58,26 @@ class OfflineKeyboardService : InputMethodService() {
         val grammarHints = assets.open("ru_verb_forms.txt").bufferedReader().use {
             GrammarHints.parse(it.lineSequence())
         }
+        // Keep the proven small dictionary active immediately.
         engine = BlockSearchCorrector(dictionary, phrases, grammarHints)
+        // The much larger dictionary is prepared off the input/UI thread,
+        // while taps and spelling correction with the base lexicon continue.
+        predictionWorker.execute {
+            try {
+                val expanded = assets.open("ru_words_leeds_10k.txt").bufferedReader().use {
+                    FastCorrector.parseDictionary(it.lineSequence())
+                }
+                val upgraded = BlockSearchCorrector(dictionary + expanded, phrases, grammarHints)
+                if (!destroyed) {
+                    engine = upgraded
+                    uiHandler.post {
+                        if (!destroyed && original.isNotEmpty()) schedulePrediction()
+                    }
+                }
+            } catch (_: Exception) {
+                // The base dictionary remains available if an asset cannot load.
+            }
+        }
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
@@ -83,6 +103,7 @@ class OfflineKeyboardService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        destroyed = true
         invalidatePrediction()
         predictionWorker.shutdownNow()
         super.onDestroy()
