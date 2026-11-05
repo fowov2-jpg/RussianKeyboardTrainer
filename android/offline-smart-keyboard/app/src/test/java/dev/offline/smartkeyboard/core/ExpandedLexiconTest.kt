@@ -21,7 +21,12 @@ class ExpandedLexiconTest {
     private val entries by lazy {
         read("ru_words.txt") + read("ru_words_leeds_10k.txt")
     }
-    private val engine by lazy { BlockSearchCorrector(entries) }
+    private val engine by lazy {
+        BlockSearchCorrector(
+            entries,
+            priorityWords = read("ru_words.txt").map { it.word }.toSet()
+        )
+    }
 
     @Test fun extendedWordCoverageAndExactWordSafety() {
         assertTrue("APK should contain at least 10,000 word entries", engine.dictionarySize() >= 10_000)
