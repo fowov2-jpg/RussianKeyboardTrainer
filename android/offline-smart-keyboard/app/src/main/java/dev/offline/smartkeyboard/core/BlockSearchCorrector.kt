@@ -27,6 +27,7 @@ class BlockSearchCorrector(
         .map { (_, entries) -> entries.maxBy { it.frequency } }
     private val exactWords = dictionary.associateBy { it.word }
     private val digitIndex = NineBlockIndex()
+    private val recovery = SmartT9Recovery(digitIndex)
     private val deletedWords = HashMap<String, MutableList<FastCorrector.Entry>>()
     // Indexed double deletions let us restore two OMITTED letters via one map lookup,
     // without generating all possible Russian character insertions.
@@ -46,7 +47,10 @@ class BlockSearchCorrector(
             val expensiveIndex = dictionary.size <= 2_000 ||
                 entry.frequency >= 10_000 || entry.word in priorityWords
             val code = T9Predictor.encode(entry.word)
-            if (code != null) digitIndex.add(entry, code, expensiveIndex)
+            if (code != null) {
+                digitIndex.add(entry, code, expensiveIndex)
+                recovery.add(entry, code, expensiveIndex)
+            }
             val word = entry.word
             if (word.length in 3..24 && word.all { it.isLetter() }) {
                 for (i in word.indices) {
@@ -114,7 +118,7 @@ class BlockSearchCorrector(
             }
         }
         val code = T9Predictor.encode(word)
-        if (code != null) digitIndex.collect(code, ::add)
+        if (code != null) recovery.collect(code, ::add)
         val ranked = pool.values.asSequence().mapNotNull { entry ->
             val edits = distance(word, entry.word, 2)
             if (edits > 2 && reviewed[word] != entry.word) null
