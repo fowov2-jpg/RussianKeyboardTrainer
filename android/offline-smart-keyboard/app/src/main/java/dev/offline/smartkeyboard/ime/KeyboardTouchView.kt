@@ -12,7 +12,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import kotlin.math.max
-import kotlin.math.pow
 
 /**
  * Single-surface keyboard with per-pointer touch tracking.
@@ -214,7 +213,7 @@ internal class KeyboardTouchView(
         return keys.minByOrNull {
             val dx = maxOf(it.hit.left - x, 0f, x - it.hit.right)
             val dy = maxOf(it.hit.top - y, 0f, y - it.hit.bottom)
-            dx.pow(2) + dy.pow(2)
+            dx * dx + dy * dy
         }?.takeIf {
             val cx = maxOf(it.hit.left - x, 0f, x - it.hit.right)
             val cy = maxOf(it.hit.top - y, 0f, y - it.hit.bottom)
