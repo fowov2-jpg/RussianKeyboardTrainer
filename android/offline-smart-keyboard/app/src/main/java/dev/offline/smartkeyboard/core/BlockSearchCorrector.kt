@@ -13,7 +13,8 @@ import kotlin.math.abs
 class BlockSearchCorrector(
     input: List<FastCorrector.Entry>,
     private val context: ContextRanker = ContextRanker.EMPTY,
-    private val grammarHints: GrammarHints = GrammarHints.EMPTY
+    private val grammarHints: GrammarHints = GrammarHints.EMPTY,
+    private val priorityWords: Set<String> = emptySet()
 ) {
     data class Suggestion(val word: String, val score: Double, val edits: Int, val proximityCost: Double = edits.toDouble())
     data class Decision(val text: String, val changed: Boolean, val suggestions: List<Suggestion>)
@@ -42,6 +43,10 @@ class BlockSearchCorrector(
 
     init {
         for (entry in dictionary) {
+            // Preserve the complete correction behavior of the original small
+            // dictionary, even when a larger frequency corpus is bundled.
+            val expensiveIndex = dictionary.size <= 2_000 ||
+                entry.frequency >= 10_000 || entry.word in priorityWords
             val code = T9Predictor.encode(entry.word)
             if (code != null && code.length in 2..24) {
                 exactCodes.getOrPut(code) { ArrayList() }.add(entry)
@@ -50,7 +55,7 @@ class BlockSearchCorrector(
                 }
                 // Two wrongly touched groups may occur in a single word. The
                 // index keeps lookup local instead of expanding all letters.
-                if (entry.frequency >= 10_000 && code.length in 4..14) {
+                if (expensiveIndex && code.length in 4..14) {
                     for (i in 0 until code.length - 1) {
                         for (j in i + 1 until code.length) {
                             doubleMaskedCodes.getOrPut(mask2(code, i, j)) { ArrayList() }.add(entry)
@@ -65,7 +70,7 @@ class BlockSearchCorrector(
                 }
                 // Bound memory on long words. A future full dictionary should use a
                 // compact/truncated deletion index instead of expanding unlimited pairs.
-                if (entry.frequency >= 10_000 && word.length in 6..16) {
+                if (expensiveIndex && word.length in 6..16) {
                     for (i in 0 until word.length - 1) {
                         for (j in i + 1 until word.length) {
                             val key = buildString(word.length - 2) {
