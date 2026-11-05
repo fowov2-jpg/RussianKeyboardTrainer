@@ -28,6 +28,9 @@ class BlockSearchCorrector(
     private val maskedCodes = HashMap<String, MutableList<FastCorrector.Entry>>()
     private val doubleMaskedCodes = HashMap<String, MutableList<FastCorrector.Entry>>()
     private val deletedWords = HashMap<String, MutableList<FastCorrector.Entry>>()
+    // Indexed double deletions let us restore two OMITTED letters via one map lookup,
+    // without generating all possible Russian character insertions.
+    private val doubleDeletedWords = HashMap<String, MutableList<FastCorrector.Entry>>()
 
     // Demonstration exceptions only, not a generally reliable grammar system.
     private val reviewed = mapOf(
@@ -59,6 +62,20 @@ class BlockSearchCorrector(
                 for (i in word.indices) {
                     deletedWords.getOrPut(word.removeRange(i, i + 1)) { ArrayList() }.add(entry)
                 }
+                // Bound memory on long words. A future full dictionary should use a
+                // compact/truncated deletion index instead of expanding unlimited pairs.
+                if (word.length in 6..16) {
+                    for (i in 0 until word.length - 1) {
+                        for (j in i + 1 until word.length) {
+                            val key = buildString(word.length - 2) {
+                                for (k in word.indices) if (k != i && k != j) append(word[k])
+                            }
+                            val bucket = doubleDeletedWords.getOrPut(key) { ArrayList() }
+                            // Repeated letters can generate the same key; avoid duplicate entries.
+                            if (bucket.lastOrNull() !== entry) bucket.add(entry)
+                        }
+                    }
+                }
             }
         }
     }
@@ -86,6 +103,9 @@ class BlockSearchCorrector(
         reviewed[word]?.let { exactWords[it]?.let(::add) }
         // Letters come first: avoid losing close lexical matches in crowded numeric buckets.
         deletedWords[word]?.forEach(::add) // query omits one character
+        // Two missed taps are common in fast one-thumb input. Retrieve candidates,
+        // but do not auto-apply them without strict confidence checks below.
+        if (word.length >= 4) doubleDeletedWords[word]?.forEach(::add)
         for (i in word.indices) {
             val without = word.removeRange(i, i + 1)
             deletedWords[without]?.forEach(::add) // substitutions / one extra character
@@ -135,17 +155,27 @@ class BlockSearchCorrector(
         val target = if (preferred != null && exactWords.containsKey(preferred)) preferred else {
             val best = picks.firstOrNull()
             val second = picks.getOrNull(1)
+            val doubleOmission = best != null &&
+                word.length >= 5 &&
+                best.word.length == word.length + 2 &&
+                isSubsequence(word, best.word)
             val candidateIsReliable = best != null &&
                 (exactWords[best.word]?.frequency ?: 0) >= 900 &&
                 ((best.edits == 1 && best.proximityCost <= 1.0) ||
-                 (best.edits == 2 && best.proximityCost <= 0.9))
+                 (best.edits == 2 && best.proximityCost <= 0.9) ||
+                 doubleOmission)
             val margin = if (best != null && second != null)
                 second.score - best.score else Double.POSITIVE_INFINITY
-            // Two-letter changes are accepted only when BOTH are plausibly
-            // adjacent touch errors and the next candidate is clearly worse.
-            if (candidateIsReliable && best != null &&
-                margin >= (if (best.edits == 2) 1.4 else if (raw.length == 3) 2.5 else 1.5)
-            ) best.word else null
+            // Two omitted letters must preserve every typed letter in order
+            // and be significantly less ambiguous than a normal one-key typo.
+            val requiredMargin = when {
+                doubleOmission -> 2.0
+                best?.edits == 2 -> 1.4
+                raw.length == 3 -> 2.5
+                else -> 1.5
+            }
+            if (candidateIsReliable && best != null && margin >= requiredMargin)
+                best.word else null
         }
         if (target == null || target == word) return Decision(raw, false, picks)
         val result = if (raw.first().isUpperCase()) target.replaceFirstChar { it.titlecase(locale) } else target
@@ -153,6 +183,15 @@ class BlockSearchCorrector(
     }
 
     companion object {
+        /** True only when all characters typed appear in the candidate in order. */
+        private fun isSubsequence(typed: String, candidate: String): Boolean {
+            var cursor = 0
+            for (ch in candidate) {
+                if (cursor < typed.length && typed[cursor] == ch) cursor++
+            }
+            return cursor == typed.length
+        }
+
         /** Damerau-OSA with early row exit. Used for ranking, not for pool generation. */
         private fun distance(a: String, b: String, limit: Int): Int {
             if (abs(a.length - b.length) > limit) return limit + 1
