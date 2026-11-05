@@ -11,10 +11,12 @@ class T9Predictor(entries: List<FastCorrector.Entry>) {
     data class Candidate(val word: String, val exact: Boolean)
 
     companion object {
-        // 1 is punctuation; 0 is space, as on classic numeric handsets.
+        // Nine hidden groups, digits 1..9. Only rare ё/ъ moved to group 1.
+        // Codes for common words (e.g. привет = 564236) remain unchanged.
         val KEY_LETTERS: Map<Char, String> = linkedMapOf(
-            '2' to "абвг", '3' to "деёжз", '4' to "ийкл", '5' to "мноп",
-            '6' to "рсту", '7' to "фхцч", '8' to "шщъы", '9' to "ьэюя"
+            '1' to "ёъ", '2' to "абвг", '3' to "дежз", '4' to "ийкл",
+            '5' to "мноп", '6' to "рсту", '7' to "фхцч",
+            '8' to "шщы", '9' to "ьэюя"
         )
         private val charToKey: Map<Char, Char> = buildMap {
             for ((key, letters) in KEY_LETTERS) {
@@ -63,7 +65,7 @@ class T9Predictor(entries: List<FastCorrector.Entry>) {
 
     /** Exact-length words come before longer completions. No model is executed. */
     fun candidates(digits: String, limit: Int = 3): List<Candidate> {
-        if (digits.isEmpty() || digits.length > 32 || digits.any { it !in '2'..'9' }) {
+        if (digits.isEmpty() || digits.length > 32 || digits.any { it !in '1'..'9' }) {
             return emptyList()
         }
         val first = exact[digits].orEmpty().map { Candidate(it.word, true) }
