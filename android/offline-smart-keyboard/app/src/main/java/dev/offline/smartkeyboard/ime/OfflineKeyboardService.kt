@@ -31,6 +31,8 @@ class OfflineKeyboardService : InputMethodService() {
     private val suggestionButtons = mutableListOf<Button>()
     private val letterButtons = mutableListOf<Pair<Button, Char>>()
     private var suggestions: List<BlockSearchCorrector.Suggestion> = emptyList()
+    private var lastPrediction: BlockSearchCorrector.Decision? = null
+    private var predictedWord: String? = null
     private var autocorrectEnabled = false
     private var numeric = false
     private var shift = false
@@ -111,6 +113,8 @@ class OfflineKeyboardService : InputMethodService() {
         val word = original.toString()
         val before = previousWord
         suggestions = emptyList()
+        lastPrediction = null
+        predictedWord = null
         updateSuggestions()
         if (word.length < 2 || !autocorrectEnabled) return
         val task = Runnable {
@@ -120,9 +124,9 @@ class OfflineKeyboardService : InputMethodService() {
                     if (revision == predictionRevision &&
                         original.toString() == word && previousWord == before) {
                         suggestions = decision.suggestions
-                        currentInputConnection?.setComposingText(
-                            capitalize(decision.text, capitalizeWord), 1
-                        )
+                        lastPrediction = decision
+                        predictedWord = word
+                        // Suggestions only; never rewrite the editor during typing.
                         updateSuggestions()
                     }
                 }
@@ -136,6 +140,8 @@ class OfflineKeyboardService : InputMethodService() {
         invalidatePrediction()
         original.clear()
         suggestions = emptyList()
+        lastPrediction = null
+        predictedWord = null
         lastUndo = null
         previousWord = null
         shift = false
@@ -290,34 +296,60 @@ class OfflineKeyboardService : InputMethodService() {
     private fun redraw() = setInputView(makeKeyboard())
 
     private fun press(char: Char) {
-        if (numeric || !autocorrectEnabled || !char.isLetter()) {
+        if (numeric || !char.isLetter()) {
             finishWord()
             currentInputConnection?.commitText(char.toString(), 1)
             return
         }
+        val first = original.isEmpty()
+        val capital = shift || (first && sentenceStart)
+        val visible = if (capital) char.uppercaseChar() else char
         lastUndo = null
-        if (original.isEmpty()) capitalizeWord = sentenceStart || shift
-        original.append(char)
+        currentInputConnection?.commitText(visible.toString(), 1)
         sentenceStart = false
-        // Commit the raw composing text immediately: input must not wait for the dictionary.
-        currentInputConnection?.setComposingText(capitalize(original.toString(), capitalizeWord), 1)
-        schedulePrediction()
+        if (autocorrectEnabled) {
+            if (first) capitalizeWord = capital
+            original.append(char.lowercaseChar())
+            schedulePrediction()
+        }
         shift = false
+        updateShiftLabels()
     }
 
     private fun capitalize(word: String, enabled: Boolean): String =
         if (enabled) word.replaceFirstChar { it.titlecase(ru) } else word
 
+    /**
+     * Replace only our word at the cursor. Never delete unrelated editor text
+     * when the user or host application moved the selection.
+     */
+    private fun replaceCurrentWord(source: String, corrected: String): Boolean {
+        if (source == corrected) return true
+        val connection = currentInputConnection ?: return false
+        if (connection.getTextBeforeCursor(source.length, 0)?.toString() != source) return false
+        connection.beginBatchEdit()
+        try {
+            if (!connection.deleteSurroundingTextInCodePoints(
+                    source.codePointCount(0, source.length), 0
+                )) return false
+            connection.commitText(corrected, 1)
+        } finally {
+            connection.endBatchEdit()
+        }
+        return true
+    }
+
     private fun choose(index: Int) {
         if (original.isEmpty()) return
-        invalidatePrediction()
         val suggestion = suggestions.getOrNull(index) ?: return
-        val before = capitalize(original.toString(), capitalizeWord)
-        val after = capitalize(suggestion.word, capitalizeWord)
-        currentInputConnection?.commitText("$after ", 1)
-        lastUndo = if (before != after) Undo(before, after, previousWord) else null
+        val source = capitalize(original.toString(), capitalizeWord)
+        val replacement = capitalize(suggestion.word, capitalizeWord)
+        if (!replaceCurrentWord(source, replacement)) return
+        currentInputConnection?.commitText(" ", 1)
+        lastUndo = if (source != replacement) Undo(source, replacement, previousWord) else null
         previousWord = suggestion.word.lowercase(ru)
         original.clear()
+        invalidatePrediction()
         suggestions = emptyList()
         updateSuggestions()
     }
@@ -325,40 +357,37 @@ class OfflineKeyboardService : InputMethodService() {
     private fun updateSuggestions() {
         suggestionButtons.forEachIndexed { index, button ->
             val word = suggestions.getOrNull(index)?.word
-            button.text = word?.let { capitalize(it, capitalizeWord) }.orEmpty()
+            button.text = if (word != null) capitalize(word, capitalizeWord)
+                else if (index == 1) {
+                    if (original.isEmpty()) "Русский · офлайн"
+                    else capitalize(original.toString(), capitalizeWord)
+                } else ""
             button.isEnabled = word != null
         }
     }
 
     private fun finishWord(): String? {
         if (original.isEmpty()) return null
-        invalidatePrediction()
         val source = capitalize(original.toString(), capitalizeWord)
-        val correction = engine.decide(original.toString(), previousWord)
-        val finalWord = capitalize(correction.text, capitalizeWord)
-        currentInputConnection?.commitText(finalWord, 1)
+        val decision = if (predictedWord == original.toString()) lastPrediction else null
+        var corrected = capitalize(decision?.text ?: original.toString(), capitalizeWord)
+        if (!replaceCurrentWord(source, corrected)) corrected = source
+        invalidatePrediction()
         original.clear()
         suggestions = emptyList()
+        lastPrediction = null
+        predictedWord = null
         updateSuggestions()
-        lastUndo = if (source != finalWord) Undo(source, finalWord, previousWord) else null
-        previousWord = finalWord.lowercase(ru)
-        return finalWord
+        lastUndo = if (source != corrected) Undo(source, corrected, previousWord) else null
+        previousWord = corrected.lowercase(ru)
+        return corrected
     }
 
     private fun space() {
-        invalidatePrediction()
-        val before = if (original.isNotEmpty()) capitalize(original.toString(), capitalizeWord) else null
-        val corrected = if (original.isNotEmpty()) {
-            val value = engine.decide(original.toString(), previousWord).text
-            capitalize(value, capitalizeWord)
-        } else null
-        currentInputConnection?.commitText((corrected ?: "") + " ", 1)
-        original.clear()
-        suggestions = emptyList()
-        updateSuggestions()
-        lastUndo = if (before != null && corrected != before) Undo(before, corrected!!, previousWord) else null
-        if (corrected != null) previousWord = corrected.lowercase(ru)
+        finishWord()
+        currentInputConnection?.commitText(" ", 1)
         shift = false
+        updateShiftLabels()
     }
 
     private fun punctuation(mark: String) {
@@ -377,30 +406,34 @@ class OfflineKeyboardService : InputMethodService() {
         val undo = lastUndo
         lastUndo = null
         if (undo != null && original.isEmpty()) {
-            // Undo last replacement only if text directly before cursor still matches.
-            val actual = connection.getTextBeforeCursor(undo.corrected.length + 1, 0)?.toString()
-            if (actual == "${undo.corrected} " &&
-                connection.deleteSurroundingTextInCodePoints(undo.corrected.codePointCount(0, undo.corrected.length) + 1, 0)) {
-                original.append(undo.original.lowercase(ru))
-                previousWord = undo.previousBefore
-                capitalizeWord = undo.original.firstOrNull()?.isUpperCase() == true
-                connection.setComposingText(undo.original, 1)
-                // The corrected word was not accepted; do not use it as context.
-                schedulePrediction()
-                return
+            val textBeforeCursor = connection.getTextBeforeCursor(undo.corrected.length + 1, 0)
+                ?.toString()
+            if (textBeforeCursor == "${undo.corrected} ") {
+                connection.beginBatchEdit()
+                try {
+                    if (connection.deleteSurroundingTextInCodePoints(
+                            undo.corrected.codePointCount(0, undo.corrected.length) + 1, 0
+                        )) {
+                        connection.commitText(undo.original, 1)
+                        original.append(undo.original.lowercase(ru))
+                        previousWord = undo.previousBefore
+                        capitalizeWord = undo.original.firstOrNull()?.isUpperCase() == true
+                        schedulePrediction()
+                        return
+                    }
+                } finally {
+                    connection.endBatchEdit()
+                }
             }
         }
         if (original.isNotEmpty()) {
             original.deleteCharAt(original.lastIndex)
+            if (!connection.deleteSurroundingTextInCodePoints(1, 0))
+                sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
             if (original.isEmpty()) {
-                connection.setComposingText("", 1)
-                connection.finishComposingText()
                 suggestions = emptyList()
-            } else {
-                connection.setComposingText(capitalize(original.toString(), capitalizeWord), 1)
-                schedulePrediction()
-            }
-            updateSuggestions()
+                updateSuggestions()
+            } else schedulePrediction()
         } else if (!connection.deleteSurroundingTextInCodePoints(1, 0)) {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
         }
