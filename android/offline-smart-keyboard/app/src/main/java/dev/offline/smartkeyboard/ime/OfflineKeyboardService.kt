@@ -19,10 +19,11 @@ import dev.offline.smartkeyboard.core.ContextRanker
 import dev.offline.smartkeyboard.core.BlockSearchCorrector
 import dev.offline.smartkeyboard.core.FastCorrector
 import dev.offline.smartkeyboard.core.GrammarHints
+import dev.offline.smartkeyboard.core.CorpusTypos
 import java.util.Locale
 import java.util.concurrent.Executors
 
-/** Normal touchscreen QWERTY; 2..9 blocks are used ONLY inside word retrieval. */
+/** Normal touchscreen ЙЦУКЕН; hidden T9 blocks 1..9 stay inside word retrieval. */
 class OfflineKeyboardService : InputMethodService() {
     @Volatile private lateinit var engine: BlockSearchCorrector
     @Volatile private var destroyed = false
@@ -67,9 +68,29 @@ class OfflineKeyboardService : InputMethodService() {
                 val expanded = assets.open("ru_words_leeds_10k.txt").bufferedReader().use {
                     FastCorrector.parseDictionary(it.lineSequence())
                 }
+                // Corpus training supplies aggregate counts and curated
+                // spelling candidates, not a large neural network.
+                // Every resource is bundled; no runtime network requests.
+                val learnedForms = assets.open("ru_gec_wordforms.txt").bufferedReader().use {
+                    FastCorrector.parseDictionary(it.lineSequence())
+                }
+                val learnedPhrases = assets.open("ru_gec_bigrams.txt").bufferedReader().use {
+                    it.readLines()
+                }
+                val basePhrases = assets.open("ru_bigrams.txt").bufferedReader().use {
+                    it.readLines()
+                }
+                // Handwritten conversational rules override generic corpus pairs.
+                val combinedContext = ContextRanker.parse(
+                    (learnedPhrases + basePhrases).asSequence()
+                )
+                val learnedTypos = assets.open("ru_rlc_repeated_typos.txt").bufferedReader().use {
+                    CorpusTypos.parse(it.lineSequence())
+                }
                 val originalWords = dictionary.map { it.word }.toSet()
                 val upgraded = BlockSearchCorrector(
-                    dictionary + expanded, phrases, grammarHints, originalWords
+                    dictionary + expanded + learnedForms,
+                    combinedContext, grammarHints, originalWords, learnedTypos
                 )
                 if (!destroyed) {
                     engine = upgraded
