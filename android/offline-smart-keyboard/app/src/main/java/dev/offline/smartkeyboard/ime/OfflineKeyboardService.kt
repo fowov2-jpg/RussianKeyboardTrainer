@@ -18,6 +18,7 @@ import android.widget.LinearLayout
 import dev.offline.smartkeyboard.core.ContextRanker
 import dev.offline.smartkeyboard.core.BlockSearchCorrector
 import dev.offline.smartkeyboard.core.FastCorrector
+import dev.offline.smartkeyboard.core.GrammarHints
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -53,7 +54,10 @@ class OfflineKeyboardService : InputMethodService() {
         val phrases = assets.open("ru_bigrams.txt").bufferedReader().use {
             ContextRanker.parse(it.lineSequence())
         }
-        engine = BlockSearchCorrector(dictionary, phrases)
+        val grammarHints = assets.open("ru_verb_forms.txt").bufferedReader().use {
+            GrammarHints.parse(it.lineSequence())
+        }
+        engine = BlockSearchCorrector(dictionary, phrases, grammarHints)
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
