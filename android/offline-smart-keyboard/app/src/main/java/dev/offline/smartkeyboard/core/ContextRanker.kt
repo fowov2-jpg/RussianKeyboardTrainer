@@ -4,9 +4,9 @@ import java.util.Locale
 import kotlin.math.ln
 
 /**
- * Small explicit bigram hints. No user text is logged or uploaded.
+ * Offline bigram hints: small explicit rules + corpus-derived aggregate frequencies.
  * Lines use: previous_word next_word weight.
- * This is NOT a corpus-trained language model.
+ * Statistical, non-neural corpus counts. No user text is logged or uploaded.
  */
 class ContextRanker private constructor(
     private val weights: Map<String, Map<String, Int>>
