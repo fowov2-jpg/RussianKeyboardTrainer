@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - fix/ime-autocorrection-v0.10
+      - feat/restore-missing-letters-v0.11
     paths:
       - '.github/workflows/offline-smart-keyboard-apk.yml'
       - 'android/offline-smart-keyboard/**'
@@ -46,7 +46,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: OfflineSmartKeyboard-v0.10-debug-apk
+          name: OfflineSmartKeyboard-v0.11-debug-apk
           path: android/offline-smart-keyboard/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
