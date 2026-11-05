@@ -67,7 +67,10 @@ class OfflineKeyboardService : InputMethodService() {
                 val expanded = assets.open("ru_words_leeds_10k.txt").bufferedReader().use {
                     FastCorrector.parseDictionary(it.lineSequence())
                 }
-                val upgraded = BlockSearchCorrector(dictionary + expanded, phrases, grammarHints)
+                val originalWords = dictionary.map { it.word }.toSet()
+                val upgraded = BlockSearchCorrector(
+                    dictionary + expanded, phrases, grammarHints, originalWords
+                )
                 if (!destroyed) {
                     engine = upgraded
                     uiHandler.post {
