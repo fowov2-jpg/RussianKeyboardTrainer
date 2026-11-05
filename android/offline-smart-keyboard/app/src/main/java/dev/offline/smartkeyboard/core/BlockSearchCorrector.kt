@@ -5,7 +5,7 @@ import kotlin.math.ln
 import kotlin.math.abs
 
 /**
- * A conventional ЙЦУКЕН keyboard with a HIDDEN 2–9 block search index.
+ * A conventional ЙЦУКЕН keyboard with a HIDDEN 1–9 sharded block index.
  * Search pools combine nearby block codes, deletion keys and the actual typed letters.
  * Correct real dictionary words are always left alone, regardless of context.
  * No network access and no enumeration of all letters inside each T9 group.
@@ -26,9 +26,7 @@ class BlockSearchCorrector(
         .groupBy { it.word }
         .map { (_, entries) -> entries.maxBy { it.frequency } }
     private val exactWords = dictionary.associateBy { it.word }
-    private val exactCodes = HashMap<String, MutableList<FastCorrector.Entry>>()
-    private val maskedCodes = HashMap<String, MutableList<FastCorrector.Entry>>()
-    private val doubleMaskedCodes = HashMap<String, MutableList<FastCorrector.Entry>>()
+    private val digitIndex = NineBlockIndex()
     private val deletedWords = HashMap<String, MutableList<FastCorrector.Entry>>()
     // Indexed double deletions let us restore two OMITTED letters via one map lookup,
     // without generating all possible Russian character insertions.
@@ -48,21 +46,7 @@ class BlockSearchCorrector(
             val expensiveIndex = dictionary.size <= 2_000 ||
                 entry.frequency >= 10_000 || entry.word in priorityWords
             val code = T9Predictor.encode(entry.word)
-            if (code != null && code.length in 2..24) {
-                exactCodes.getOrPut(code) { ArrayList() }.add(entry)
-                for (i in code.indices) {
-                    maskedCodes.getOrPut(mask(code, i)) { ArrayList() }.add(entry)
-                }
-                // Two wrongly touched groups may occur in a single word. The
-                // index keeps lookup local instead of expanding all letters.
-                if (expensiveIndex && code.length in 4..14) {
-                    for (i in 0 until code.length - 1) {
-                        for (j in i + 1 until code.length) {
-                            doubleMaskedCodes.getOrPut(mask2(code, i, j)) { ArrayList() }.add(entry)
-                        }
-                    }
-                }
-            }
+            if (code != null) digitIndex.add(entry, code, expensiveIndex)
             val word = entry.word
             if (word.length in 3..24 && word.all { it.isLetter() }) {
                 for (i in word.indices) {
@@ -88,14 +72,21 @@ class BlockSearchCorrector(
 
     fun dictionarySize(): Int = dictionary.size
 
-    private fun mask(code: String, i: Int): String =
-        code.substring(0, i) + '*' + code.substring(i + 1)
+    /** Exact physical shard sizes, including the rare-letter group 1. */
+    fun indexedBlockSizes(): Map<Char, Int> = digitIndex.blockSizes()
 
-    private fun mask2(code: String, i: Int, j: Int): String {
-        val chars = code.toCharArray()
-        chars[i] = '*'
-        chars[j] = '*'
-        return String(chars)
+    /** Quick first-4-key completions: shown only, never auto-applied. */
+    fun completions(raw: String, limit: Int = 3): List<Suggestion> {
+        if (raw.length !in 2..4 || limit <= 0) return emptyList()
+        val word = raw.lowercase(locale)
+        val code = T9Predictor.encode(word) ?: return emptyList()
+        return digitIndex.completions(code, 5).asSequence()
+            .filter { it.word.startsWith(word) && it.word.length > word.length }
+            .map {
+                Suggestion(it.word, 25.0,
+                    it.word.length - word.length,
+                    (it.word.length - word.length).toDouble())
+            }.take(limit).toList()
     }
 
     fun suggestions(raw: String, limit: Int = 3, previous: String? = null): List<Suggestion> {
@@ -123,17 +114,7 @@ class BlockSearchCorrector(
             }
         }
         val code = T9Predictor.encode(word)
-        if (code != null) {
-            exactCodes[code]?.forEach(::add)
-            for (i in code.indices) maskedCodes[mask(code, i)]?.forEach(::add)
-            if (code.length in 4..14) {
-                for (i in 0 until code.length - 1) {
-                    for (j in i + 1 until code.length) {
-                        doubleMaskedCodes[mask2(code, i, j)]?.forEach(::add)
-                    }
-                }
-            }
-        }
+        if (code != null) digitIndex.collect(code, ::add)
         val ranked = pool.values.asSequence().mapNotNull { entry ->
             val edits = distance(word, entry.word, 2)
             if (edits > 2 && reviewed[word] != entry.word) null
