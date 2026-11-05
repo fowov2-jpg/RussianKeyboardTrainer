@@ -3,6 +3,8 @@ package dev.offline.smartkeyboard.ime
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
 import android.view.KeyEvent
@@ -14,10 +16,15 @@ import dev.offline.smartkeyboard.core.ContextRanker
 import dev.offline.smartkeyboard.core.BlockSearchCorrector
 import dev.offline.smartkeyboard.core.FastCorrector
 import java.util.Locale
+import java.util.concurrent.Executors
 
 /** Normal touchscreen QWERTY; 2..9 blocks are used ONLY inside word retrieval. */
 class OfflineKeyboardService : InputMethodService() {
     private lateinit var engine: BlockSearchCorrector
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val predictionWorker = Executors.newSingleThreadExecutor()
+    private var pendingPrediction: Runnable? = null
+    private var predictionRevision = 0L
     private val ru = Locale.forLanguageTag("ru-RU")
     private val original = StringBuilder()
     private val suggestionButtons = mutableListOf<Button>()
@@ -74,7 +81,51 @@ class OfflineKeyboardService : InputMethodService() {
         super.onFinishInput()
     }
 
+    override fun onDestroy() {
+        invalidatePrediction()
+        predictionWorker.shutdownNow()
+        super.onDestroy()
+    }
+
+    private fun invalidatePrediction() {
+        ++predictionRevision
+        pendingPrediction?.let { uiHandler.removeCallbacks(it) }
+        pendingPrediction = null
+    }
+
+    /**
+     * Never search the dictionary synchronously for each character.
+     * Only run the heavy lookup after a short idle window.
+     */
+    private fun schedulePrediction() {
+        invalidatePrediction()
+        val revision = predictionRevision
+        val word = original.toString()
+        val before = previousWord
+        suggestions = emptyList()
+        updateSuggestions()
+        if (word.length < 2 || !autocorrectEnabled) return
+        val task = Runnable {
+            predictionWorker.execute {
+                val decision = engine.decide(word, before)
+                uiHandler.post {
+                    if (revision == predictionRevision &&
+                        original.toString() == word && previousWord == before) {
+                        suggestions = decision.suggestions
+                        currentInputConnection?.setComposingText(
+                            capitalize(decision.text, capitalizeWord), 1
+                        )
+                        updateSuggestions()
+                    }
+                }
+            }
+        }
+        pendingPrediction = task
+        uiHandler.postDelayed(task, 85L)
+    }
+
     private fun reset() {
+        invalidatePrediction()
         original.clear()
         suggestions = emptyList()
         lastUndo = null
@@ -91,7 +142,7 @@ class OfflineKeyboardService : InputMethodService() {
         suggestionButtons.clear()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(3), dp(4), dp(3), dp(6))
+            setPadding(dp(1), dp(4), dp(1), dp(6))
             setBackgroundColor(Color.rgb(218, 222, 231))
         }
         val suggestionRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -106,7 +157,7 @@ class OfflineKeyboardService : InputMethodService() {
         for (line in lines) {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             for (letter in line) {
-                row.addView(key(if (shift) letter.uppercaseChar().toString() else letter.toString(), 1f, 53) {
+                row.addView(key(if (shift) letter.uppercaseChar().toString() else letter.toString(), 1f, 64) {
                     press(letter)
                 })
             }
@@ -152,7 +203,7 @@ class OfflineKeyboardService : InputMethodService() {
                 cornerRadius = dp(6).toFloat()
             }
             layoutParams = LinearLayout.LayoutParams(0, dp(heightDp), weight).apply {
-                setMargins(dp(1), dp(2), dp(1), dp(2))
+                setMargins(dp(1), dp(1), dp(1), dp(1))
             }
             setOnClickListener { action() }
         }
@@ -169,10 +220,9 @@ class OfflineKeyboardService : InputMethodService() {
         if (original.isEmpty()) capitalizeWord = sentenceStart || shift
         original.append(char)
         sentenceStart = false
-        val proposed = engine.decide(original.toString(), previousWord)
-        suggestions = proposed.suggestions
-        currentInputConnection?.setComposingText(capitalize(proposed.text, capitalizeWord), 1)
-        updateSuggestions()
+        // Commit the raw composing text immediately: input must not wait for the dictionary.
+        currentInputConnection?.setComposingText(capitalize(original.toString(), capitalizeWord), 1)
+        schedulePrediction()
         shift = false
     }
 
@@ -181,6 +231,7 @@ class OfflineKeyboardService : InputMethodService() {
 
     private fun choose(index: Int) {
         if (original.isEmpty()) return
+        invalidatePrediction()
         val suggestion = suggestions.getOrNull(index) ?: return
         val before = capitalize(original.toString(), capitalizeWord)
         val after = capitalize(suggestion.word, capitalizeWord)
@@ -202,6 +253,7 @@ class OfflineKeyboardService : InputMethodService() {
 
     private fun finishWord(): String? {
         if (original.isEmpty()) return null
+        invalidatePrediction()
         val source = capitalize(original.toString(), capitalizeWord)
         val correction = engine.decide(original.toString(), previousWord)
         val finalWord = capitalize(correction.text, capitalizeWord)
@@ -215,6 +267,7 @@ class OfflineKeyboardService : InputMethodService() {
     }
 
     private fun space() {
+        invalidatePrediction()
         val before = if (original.isNotEmpty()) capitalize(original.toString(), capitalizeWord) else null
         val corrected = if (original.isNotEmpty()) {
             val value = engine.decide(original.toString(), previousWord).text
@@ -240,6 +293,7 @@ class OfflineKeyboardService : InputMethodService() {
     }
 
     private fun backspace() {
+        invalidatePrediction()
         val connection = currentInputConnection ?: return
         val undo = lastUndo
         lastUndo = null
@@ -253,8 +307,7 @@ class OfflineKeyboardService : InputMethodService() {
                 capitalizeWord = undo.original.firstOrNull()?.isUpperCase() == true
                 connection.setComposingText(undo.original, 1)
                 // The corrected word was not accepted; do not use it as context.
-                suggestions = engine.suggestions(original.toString(), previous = previousWord)
-                updateSuggestions()
+                schedulePrediction()
                 return
             }
         }
@@ -265,9 +318,8 @@ class OfflineKeyboardService : InputMethodService() {
                 connection.finishComposingText()
                 suggestions = emptyList()
             } else {
-                val newValue = engine.decide(original.toString(), previousWord)
-                suggestions = newValue.suggestions
-                connection.setComposingText(capitalize(newValue.text, capitalizeWord), 1)
+                connection.setComposingText(capitalize(original.toString(), capitalizeWord), 1)
+                schedulePrediction()
             }
             updateSuggestions()
         } else if (!connection.deleteSurroundingTextInCodePoints(1, 0)) {
