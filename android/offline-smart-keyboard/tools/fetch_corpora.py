@@ -33,7 +33,7 @@ SOURCES = {
     ],
     "social": [
         ("normalization.json",
-         "https://huggingface.co/datasets/ruscorpora/normalization/resolve/main/normalization.json")
+         "https://huggingface.co/datasets/ruscorpora/normalization/resolve/main/data.json")
     ],
 }
 
