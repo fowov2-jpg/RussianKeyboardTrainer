@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - fix/offline-keyboard-input-v0.5
+      - fix/keyboard-touch-gboard-v0.6
     paths:
       - '.github/workflows/offline-smart-keyboard-apk.yml'
       - 'android/offline-smart-keyboard/**'
@@ -46,7 +46,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: OfflineSmartKeyboard-v0.5-debug-apk
+          name: OfflineSmartKeyboard-v0.6-debug-apk
           path: android/offline-smart-keyboard/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
