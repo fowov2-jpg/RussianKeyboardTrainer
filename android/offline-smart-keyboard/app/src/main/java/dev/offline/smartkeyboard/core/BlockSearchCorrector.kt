@@ -14,7 +14,7 @@ class BlockSearchCorrector(
     input: List<FastCorrector.Entry>,
     private val context: ContextRanker = ContextRanker.EMPTY
 ) {
-    data class Suggestion(val word: String, val score: Double, val edits: Int)
+    data class Suggestion(val word: String, val score: Double, val edits: Int, val proximityCost: Double = edits.toDouble())
     data class Decision(val text: String, val changed: Boolean, val suggestions: List<Suggestion>)
 
     private val locale = Locale.forLanguageTag("ru-RU")
@@ -26,6 +26,7 @@ class BlockSearchCorrector(
     private val exactWords = dictionary.associateBy { it.word }
     private val exactCodes = HashMap<String, MutableList<FastCorrector.Entry>>()
     private val maskedCodes = HashMap<String, MutableList<FastCorrector.Entry>>()
+    private val doubleMaskedCodes = HashMap<String, MutableList<FastCorrector.Entry>>()
     private val deletedWords = HashMap<String, MutableList<FastCorrector.Entry>>()
 
     // Demonstration exceptions only, not a generally reliable grammar system.
@@ -43,6 +44,15 @@ class BlockSearchCorrector(
                 for (i in code.indices) {
                     maskedCodes.getOrPut(mask(code, i)) { ArrayList() }.add(entry)
                 }
+                // Two wrongly touched groups may occur in a single word. The
+                // index keeps lookup local instead of expanding all letters.
+                if (code.length in 4..14) {
+                    for (i in 0 until code.length - 1) {
+                        for (j in i + 1 until code.length) {
+                            doubleMaskedCodes.getOrPut(mask2(code, i, j)) { ArrayList() }.add(entry)
+                        }
+                    }
+                }
             }
             val word = entry.word
             if (word.length in 3..24 && word.all { it.isLetter() }) {
@@ -57,6 +67,13 @@ class BlockSearchCorrector(
 
     private fun mask(code: String, i: Int): String =
         code.substring(0, i) + '*' + code.substring(i + 1)
+
+    private fun mask2(code: String, i: Int, j: Int): String {
+        val chars = code.toCharArray()
+        chars[i] = '*'
+        chars[j] = '*'
+        return String(chars)
+    }
 
     fun suggestions(raw: String, limit: Int = 3, previous: String? = null): List<Suggestion> {
         val word = raw.lowercase(locale)
@@ -83,6 +100,13 @@ class BlockSearchCorrector(
         if (code != null) {
             exactCodes[code]?.forEach(::add)
             for (i in code.indices) maskedCodes[mask(code, i)]?.forEach(::add)
+            if (code.length in 4..14) {
+                for (i in 0 until code.length - 1) {
+                    for (j in i + 1 until code.length) {
+                        doubleMaskedCodes[mask2(code, i, j)]?.forEach(::add)
+                    }
+                }
+            }
         }
         return pool.values.asSequence().mapNotNull { entry ->
             val edits = distance(word, entry.word, 2)
@@ -91,10 +115,11 @@ class BlockSearchCorrector(
                 // Edit cost remains dominant, context only resolves genuinely ambiguous typos.
                 val exactCredit = if (entry.word == word) -100.0 else 0.0
                 val groupPenalty = if (code != null && code == T9Predictor.encode(entry.word)) 0.0 else 0.25
-                val score = edits * 3.0 + groupPenalty -
+                val proximity = KeyProximity.distance(word, entry.word)
+                val score = proximity * 3.0 + groupPenalty -
                     ln(entry.frequency.coerceAtLeast(1).toDouble()) * 0.09 -
                     context.bonus(previous, entry.word) + exactCredit
-                Suggestion(entry.word, score, edits)
+                Suggestion(entry.word, score, edits, proximity)
             }
         }.sortedWith(compareBy<Suggestion> { it.score }.thenBy { it.word }).take(limit).toList()
     }
@@ -110,9 +135,16 @@ class BlockSearchCorrector(
         val target = if (preferred != null && exactWords.containsKey(preferred)) preferred else {
             val best = picks.firstOrNull()
             val second = picks.getOrNull(1)
-            if (best != null && best.edits == 1 &&
-                (exactWords[best.word]?.frequency ?: 0) >= 100 &&
-                (second == null || second.score - best.score >= 2.0)
+            val candidateIsReliable = best != null &&
+                (exactWords[best.word]?.frequency ?: 0) >= 900 &&
+                ((best.edits == 1 && best.proximityCost <= 1.0) ||
+                 (best.edits == 2 && best.proximityCost <= 0.9))
+            val margin = if (best != null && second != null)
+                second.score - best.score else Double.POSITIVE_INFINITY
+            // Two-letter changes are accepted only when BOTH are plausibly
+            // adjacent touch errors and the next candidate is clearly worse.
+            if (candidateIsReliable && margin >=
+                (if (best!!.edits == 2) 1.4 else 1.5)
             ) best.word else null
         }
         if (target == null || target == word) return Decision(raw, false, picks)
