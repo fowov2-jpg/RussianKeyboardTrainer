@@ -12,7 +12,8 @@ import kotlin.math.abs
  */
 class BlockSearchCorrector(
     input: List<FastCorrector.Entry>,
-    private val context: ContextRanker = ContextRanker.EMPTY
+    private val context: ContextRanker = ContextRanker.EMPTY,
+    private val grammarHints: GrammarHints = GrammarHints.EMPTY
 ) {
     data class Suggestion(val word: String, val score: Double, val edits: Int, val proximityCost: Double = edits.toDouble())
     data class Decision(val text: String, val changed: Boolean, val suggestions: List<Suggestion>)
@@ -128,7 +129,7 @@ class BlockSearchCorrector(
                 }
             }
         }
-        return pool.values.asSequence().mapNotNull { entry ->
+        val ranked = pool.values.asSequence().mapNotNull { entry ->
             val edits = distance(word, entry.word, 2)
             if (edits > 2 && reviewed[word] != entry.word) null
             else {
@@ -142,6 +143,22 @@ class BlockSearchCorrector(
                 Suggestion(entry.word, score, edits, proximity)
             }
         }.sortedWith(compareBy<Suggestion> { it.score }.thenBy { it.word }).take(limit).toList()
+
+        // A correctly typed word stays intact, but if a nearby pronoun implies
+        // another verb form, offer it as the FIRST selectable suggestion.
+        // This is a deliberately narrow grammatical hint, not generic NLP.
+        val expected = if (exactWords.containsKey(word))
+            grammarHints.suggestion(previous, word) else null
+        val suggestedEntry = expected?.let { exactWords[it] }
+        if (suggestedEntry != null && suggestedEntry.word != word) {
+            val hint = Suggestion(
+                suggestedEntry.word, -110.0,
+                distance(word, suggestedEntry.word, 3),
+                KeyProximity.distance(word, suggestedEntry.word)
+            )
+            return (listOf(hint) + ranked.filter { it.word != hint.word }).take(limit)
+        }
+        return ranked
     }
 
     /** Autochange only an unrecognized word with a strong enough winning candidate. */
