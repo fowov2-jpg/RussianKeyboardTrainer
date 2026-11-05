@@ -77,9 +77,11 @@ class GeraExternalEvaluationTest {
     @Test fun evaluateExternalGeraDevAndTestWithoutPackagingCorpus() {
         val files = listOf("GERA.dev.m2", "GERA.test.m2")
         for (filename in files) {
-            val source = listOf(File("data/raw/$filename"),
-                File("android/offline-smart-keyboard/data/raw/$filename"))
-                .firstOrNull(File::isFile)
+            val source = listOf(
+                File("../data/raw/$filename"),  // Gradle :app:testDebugUnitTest workdir
+                File("data/raw/$filename"),
+                File("android/offline-smart-keyboard/data/raw/$filename")
+            ).firstOrNull(File::isFile)
             if (source == null) {
                 println("GERA_EVAL_SKIPPED file=$filename reason=source-not-downloaded")
                 continue
