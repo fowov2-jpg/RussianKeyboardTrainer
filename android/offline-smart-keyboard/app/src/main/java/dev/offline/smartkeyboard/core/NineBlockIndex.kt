@@ -86,6 +86,20 @@ internal class NineBlockIndex {
         }
     }
 
+    /** Direct lookup after removing an accidentally inserted digit. */
+    fun collectExact(code: String, accept: (FastCorrector.Entry) -> Unit) {
+        shard(code)?.exact?.get(code)?.forEach(accept)
+    }
+
+    /** One code substitution, including an incorrect very first block. */
+    fun collectOneMismatch(code: String, accept: (FastCorrector.Entry) -> Unit) {
+        val block = shard(code) ?: return
+        for (i in code.indices) {
+            val indexed = if (i == 0) firstMismatch else block.oneMismatch
+            indexed[mask(code, i)]?.forEach(accept)
+        }
+    }
+
     /** Candidates for the first 1-4 typed blocks, already frequency-ranked. */
     fun completions(digits: String, limit: Int = 3): List<FastCorrector.Entry> {
         if (digits.isEmpty() || limit <= 0 || digits.length > 4) return emptyList()
