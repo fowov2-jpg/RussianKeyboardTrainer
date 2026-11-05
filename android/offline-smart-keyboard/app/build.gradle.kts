@@ -11,8 +11,8 @@ android {
         applicationId = "dev.offline.smartkeyboard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.11.0"
+        versionCode = 12
+        versionName = "0.12.0"
     }
 
     compileOptions {
@@ -27,4 +27,11 @@ android {
 // Verify touch-proximity correction on real user typo examples.
 dependencies {
     testImplementation("junit:junit:4.13.2")
+}
+
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    testLogging {
+        events("passed", "failed", "standardOut")
+        showStandardStreams = true
+    }
 }
