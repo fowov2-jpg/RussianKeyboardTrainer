@@ -3,6 +3,7 @@ package dev.offline.smartkeyboard.ime
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
@@ -10,6 +11,7 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.LinearLayout
@@ -157,8 +159,32 @@ class OfflineKeyboardService : InputMethodService() {
         letterButtons.clear()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(3), dp(3), dp(3), dp(4))
+            // On Android 15+ a three-button navigation bar can overlay an IME.
+            // Reserve a safe area immediately, even before the first inset dispatch.
+            val initialSafeBottom = if (Build.VERSION.SDK_INT >= 35) dp(52) else 0
+            setPadding(dp(3), dp(3), dp(3), dp(4) + initialSafeBottom)
             setBackgroundColor(Color.rgb(215, 220, 229))
+        }
+        // Use the system-provided nav/tappable insets if they are available.
+        // A 52dp fallback protects the bottom row on OEM IME windows where
+        // navigation insets are consumed before reaching the input view.
+        if (Build.VERSION.SDK_INT >= 30) {
+            root.setOnApplyWindowInsetsListener { view, insets ->
+                val navBottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+                val touchBottom = insets.getInsets(WindowInsets.Type.tappableElement()).bottom
+                val knownInset = maxOf(navBottom, touchBottom)
+                val safeBottom = when {
+                    knownInset > 0 -> knownInset
+                    Build.VERSION.SDK_INT >= 35 -> dp(52)
+                    else -> 0
+                }
+                val requiredPadding = dp(4) + safeBottom
+                if (view.paddingBottom != requiredPadding) {
+                    view.setPadding(dp(3), dp(3), dp(3), requiredPadding)
+                }
+                insets
+            }
+            root.post { root.requestApplyInsets() }
         }
 
         // Gboard-like thin suggestion strip, never three empty giant keys.
@@ -359,7 +385,7 @@ class OfflineKeyboardService : InputMethodService() {
             val word = suggestions.getOrNull(index)?.word
             button.text = if (word != null) capitalize(word, capitalizeWord)
                 else if (index == 1) {
-                    if (original.isEmpty()) "Русский · офлайн"
+                    if (original.isEmpty()) "RU"
                     else capitalize(original.toString(), capitalizeWord)
                 } else ""
             button.isEnabled = word != null
