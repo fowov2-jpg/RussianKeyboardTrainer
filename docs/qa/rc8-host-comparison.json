@@ -1,0 +1,437 @@
+{
+  "baseline_production_commit": "2aa0485bf0da31096caee3833053ef65986a8e8e",
+  "candidate": "1.0.0-rc8",
+  "scope": "JVM planner with pinned real model logits, same fixed datasets, common index enabled in both versions. Not Android inference or independent human-error evaluation.",
+  "android_execution": "pending GitHub runner queue",
+  "physical_phone_tested": false,
+  "datasets": {
+    "frequent": {
+      "cases": 7500,
+      "before": {
+        "cases_sha256": "b30519973ab7ed25ab5414b16eb6c9a8aba2194f12b13506667f827d7c96f070",
+        "by_kind": {
+          "typo": {
+            "cases": 3000,
+            "contract_failures": 0,
+            "exact_gold": 1810,
+            "kept": 1190,
+            "boundary_exact_gold": 1831,
+            "valid_morphology_inputs": 3,
+            "other_replacement": 0,
+            "frequency_weighted_exact": 0.42929715395037654
+          },
+          "word_keep": {
+            "cases": 2000,
+            "contract_failures": 0,
+            "exact_gold": 2000,
+            "kept": 2000,
+            "boundary_exact_gold": 2000,
+            "valid_morphology_inputs": 2000,
+            "other_replacement": 0,
+            "frequency_weighted_exact": 1.0
+          },
+          "protected": {
+            "cases": 500,
+            "contract_failures": 0,
+            "exact_gold": 500,
+            "kept": 500,
+            "boundary_exact_gold": 500,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "restore": {
+            "cases": 1000,
+            "contract_failures": 0,
+            "exact_gold": 743,
+            "kept": 0,
+            "boundary_exact_gold": 0,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "phrase_keep": {
+            "cases": 1000,
+            "contract_failures": 0,
+            "exact_gold": 982,
+            "kept": 982,
+            "boundary_exact_gold": 0,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          }
+        },
+        "comma_restore": {
+          "tp": 373,
+          "fp": 17,
+          "fn": 77,
+          "precision": 0.9564102564102565,
+          "recall": 0.8288888888888889
+        },
+        "question_restore": {
+          "tp": 115,
+          "fp": 38,
+          "fn": 73
+        },
+        "contract_failures": 0
+      },
+      "after": {
+        "cases_sha256": "b73003ca2a957bd5c9c938c23a47e6f1bb1bbef209d93b52d38afc070b185177",
+        "by_kind": {
+          "typo": {
+            "cases": 3000,
+            "contract_failures": 0,
+            "exact_gold": 1810,
+            "kept": 1190,
+            "boundary_exact_gold": 1831,
+            "valid_morphology_inputs": 3,
+            "other_replacement": 0,
+            "frequency_weighted_exact": 0.42929715395037654
+          },
+          "word_keep": {
+            "cases": 2000,
+            "contract_failures": 0,
+            "exact_gold": 2000,
+            "kept": 2000,
+            "boundary_exact_gold": 2000,
+            "valid_morphology_inputs": 2000,
+            "other_replacement": 0,
+            "frequency_weighted_exact": 1.0
+          },
+          "protected": {
+            "cases": 500,
+            "contract_failures": 0,
+            "exact_gold": 500,
+            "kept": 500,
+            "boundary_exact_gold": 500,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "restore": {
+            "cases": 1000,
+            "contract_failures": 0,
+            "exact_gold": 746,
+            "kept": 0,
+            "boundary_exact_gold": 0,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "phrase_keep": {
+            "cases": 1000,
+            "contract_failures": 0,
+            "exact_gold": 988,
+            "kept": 988,
+            "boundary_exact_gold": 0,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          }
+        },
+        "comma_restore": {
+          "tp": 373,
+          "fp": 13,
+          "fn": 77,
+          "precision": 0.966321243523316,
+          "recall": 0.8288888888888889
+        },
+        "question_restore": {
+          "tp": 115,
+          "fp": 38,
+          "fn": 73
+        },
+        "contract_failures": 0
+      },
+      "changed_outputs": 12,
+      "became_exact": 9,
+      "lost_exact": 0,
+      "changes": [
+        {
+          "id": "common-restore-0071",
+          "kind": "restore",
+          "input": "я хотел быть как она",
+          "gold": "Я хотел быть как она.",
+          "rc7": "Я хотел быть, как она.",
+          "rc8": "Я хотел быть как она.",
+          "became_exact": true,
+          "lost_exact": false
+        },
+        {
+          "id": "common-phrase_keep-0071",
+          "kind": "phrase_keep",
+          "input": "Я хотел быть как она.",
+          "gold": "Я хотел быть как она.",
+          "rc7": "Я хотел быть, как она.",
+          "rc8": "Я хотел быть как она.",
+          "became_exact": true,
+          "lost_exact": false
+        },
+        {
+          "id": "common-restore-0134",
+          "kind": "restore",
+          "input": "тебе не следует это есть",
+          "gold": "Тебе не следует это есть.",
+          "rc7": "Тебе не следует Это есть.",
+          "rc8": "Тебе не следует это есть.",
+          "became_exact": true,
+          "lost_exact": false
+        },
+        {
+          "id": "common-phrase_keep-0134",
+          "kind": "phrase_keep",
+          "input": "Тебе не следует это есть.",
+          "gold": "Тебе не следует это есть.",
+          "rc7": "Тебе не следует Это есть.",
+          "rc8": "Тебе не следует это есть.",
+          "became_exact": true,
+          "lost_exact": false
+        },
+        {
+          "id": "common-restore-0228",
+          "kind": "restore",
+          "input": "спасибо что делаешь это для него",
+          "gold": "Спасибо, что делаешь это для него.",
+          "rc7": "Спасибо, Что делаешь это для него?",
+          "rc8": "Спасибо, что делаешь это для него?",
+          "became_exact": false,
+          "lost_exact": false
+        },
+        {
+          "id": "common-phrase_keep-0228",
+          "kind": "phrase_keep",
+          "input": "Спасибо, что делаешь это для него.",
+          "gold": "Спасибо, что делаешь это для него.",
+          "rc7": "Спасибо, Что делаешь это для него.",
+          "rc8": "Спасибо, что делаешь это для него.",
+          "became_exact": true,
+          "lost_exact": false
+        },
+        {
+          "id": "common-restore-0298",
+          "kind": "restore",
+          "input": "все мы люди",
+          "gold": "Все мы люди.",
+          "rc7": "Все мы, люди.",
+          "rc8": "Все мы люди.",
+          "became_exact": true,
+          "lost_exact": false
+        },
+        {
+          "id": "common-phrase_keep-0298",
+          "kind": "phrase_keep",
+          "input": "Все мы люди.",
+          "gold": "Все мы люди.",
+          "rc7": "Все мы, люди.",
+          "rc8": "Все мы люди.",
+          "became_exact": true,
+          "lost_exact": false
+        },
+        {
+          "id": "common-restore-0356",
+          "kind": "restore",
+          "input": "ты папа",
+          "gold": "Ты папа.",
+          "rc7": "Ты, папа?",
+          "rc8": "Ты папа?",
+          "became_exact": false,
+          "lost_exact": false
+        },
+        {
+          "id": "common-phrase_keep-0356",
+          "kind": "phrase_keep",
+          "input": "Ты папа.",
+          "gold": "Ты папа.",
+          "rc7": "Ты, папа.",
+          "rc8": "Ты папа.",
+          "became_exact": true,
+          "lost_exact": false
+        },
+        {
+          "id": "common-restore-0666",
+          "kind": "restore",
+          "input": "я думала вы друзья",
+          "gold": "Я думала, вы друзья.",
+          "rc7": "Я думала вы, друзья.",
+          "rc8": "Я думала вы друзья.",
+          "became_exact": false,
+          "lost_exact": false
+        },
+        {
+          "id": "common-phrase_keep-0666",
+          "kind": "phrase_keep",
+          "input": "Я думала, вы друзья.",
+          "gold": "Я думала, вы друзья.",
+          "rc7": "Я думала, вы, друзья.",
+          "rc8": "Я думала, вы друзья.",
+          "became_exact": true,
+          "lost_exact": false
+        }
+      ]
+    },
+    "broad": {
+      "cases": 7500,
+      "before": {
+        "cases_sha256": "56fd7ea9333c58a321eb1e111c1967c9ca7c28168dd45aacf5225ff4fec3c4b8",
+        "by_kind": {
+          "typo": {
+            "cases": 2000,
+            "contract_failures": 0,
+            "exact_gold": 473,
+            "kept": 1527,
+            "boundary_exact_gold": 476,
+            "valid_morphology_inputs": 22,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "word_keep": {
+            "cases": 2000,
+            "contract_failures": 0,
+            "exact_gold": 2000,
+            "kept": 2000,
+            "boundary_exact_gold": 2000,
+            "valid_morphology_inputs": 2000,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "protected": {
+            "cases": 500,
+            "contract_failures": 0,
+            "exact_gold": 500,
+            "kept": 500,
+            "boundary_exact_gold": 500,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "restore": {
+            "cases": 1500,
+            "contract_failures": 0,
+            "exact_gold": 922,
+            "kept": 0,
+            "boundary_exact_gold": 0,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "phrase_keep": {
+            "cases": 1500,
+            "contract_failures": 0,
+            "exact_gold": 1465,
+            "kept": 1465,
+            "boundary_exact_gold": 0,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          }
+        },
+        "comma_restore": {
+          "tp": 558,
+          "fp": 39,
+          "fn": 147,
+          "precision": 0.9346733668341709,
+          "recall": 0.7914893617021277
+        },
+        "question_restore": {
+          "tp": 239,
+          "fp": 19,
+          "fn": 261
+        },
+        "contract_failures": 0
+      },
+      "after": {
+        "cases_sha256": "deaa06e9bfef05d573631ccbcdd259cfabe809117ffeeb5c0fa9364b741a9a5d",
+        "by_kind": {
+          "typo": {
+            "cases": 2000,
+            "contract_failures": 0,
+            "exact_gold": 473,
+            "kept": 1527,
+            "boundary_exact_gold": 476,
+            "valid_morphology_inputs": 22,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "word_keep": {
+            "cases": 2000,
+            "contract_failures": 0,
+            "exact_gold": 2000,
+            "kept": 2000,
+            "boundary_exact_gold": 2000,
+            "valid_morphology_inputs": 2000,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "protected": {
+            "cases": 500,
+            "contract_failures": 0,
+            "exact_gold": 500,
+            "kept": 500,
+            "boundary_exact_gold": 500,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "restore": {
+            "cases": 1500,
+            "contract_failures": 0,
+            "exact_gold": 922,
+            "kept": 0,
+            "boundary_exact_gold": 0,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          },
+          "phrase_keep": {
+            "cases": 1500,
+            "contract_failures": 0,
+            "exact_gold": 1466,
+            "kept": 1466,
+            "boundary_exact_gold": 0,
+            "valid_morphology_inputs": 0,
+            "other_replacement": 0,
+            "frequency_weighted_exact": null
+          }
+        },
+        "comma_restore": {
+          "tp": 558,
+          "fp": 38,
+          "fn": 147,
+          "precision": 0.9362416107382551,
+          "recall": 0.7914893617021277
+        },
+        "question_restore": {
+          "tp": 239,
+          "fp": 19,
+          "fn": 261
+        },
+        "contract_failures": 0
+      },
+      "changed_outputs": 2,
+      "became_exact": 1,
+      "lost_exact": 0,
+      "changes": [
+        {
+          "id": "restore-0721",
+          "kind": "restore",
+          "input": "эти двое детей очень похожи полагаю они братья",
+          "gold": "Эти двое детей очень похожи. Полагаю, они братья.",
+          "rc7": "Эти двое детей очень похожи полагаю, они, братья.",
+          "rc8": "Эти двое детей очень похожи полагаю, они братья.",
+          "became_exact": false,
+          "lost_exact": false
+        },
+        {
+          "id": "phrase_keep-0721",
+          "kind": "phrase_keep",
+          "input": "Эти двое детей очень похожи. Полагаю, они братья.",
+          "gold": "Эти двое детей очень похожи. Полагаю, они братья.",
+          "rc7": "Эти двое детей очень похожи. Полагаю, они, братья.",
+          "rc8": "Эти двое детей очень похожи. Полагаю, они братья.",
+          "became_exact": true,
+          "lost_exact": false
+        }
+      ]
+    }
+  }
+}

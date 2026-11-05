@@ -16,6 +16,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.Before
+import org.junit.After
 import org.junit.runner.RunWith
 
 /**
@@ -24,6 +26,51 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class KeyboardTypingTest {
+    /** Raw key bounds (not clipped accessibility bounds), then actual lower-edge taps. */
+    private fun checkBottomRow(device: UiDevice, scenario: ActivityScenario<MainActivity>) {
+        if (android.os.Build.VERSION.SDK_INT < 30) return
+        val points = mutableListOf<Pair<Int, Int>>()
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val decor = android.view.inspector.WindowInspector.getGlobalWindowViews()
+                .firstOrNull { it.findViewById<android.view.View>(R.id.keyboard_root) != null }
+            assertNotNull("IME window not found", decor)
+            val root = decor!!.findViewById<android.view.View>(R.id.keyboard_root)
+            val safe = requireNotNull(decor.rootWindowInsets).getInsets(
+                android.view.WindowInsets.Type.navigationBars() or android.view.WindowInsets.Type.mandatorySystemGestures())
+            val density = root.resources.displayMetrics.density
+            assertTrue("Three-button navigation must be enabled for this regression", maxOf(safe.bottom, safe.left, safe.right) >= 40 * density)
+            val origin = IntArray(2); decor.getLocationOnScreen(origin)
+            fun find(view: android.view.View, description: String): android.view.View? {
+                if (view.contentDescription?.toString() == description) return view
+                if (view is android.view.ViewGroup) for (i in 0 until view.childCount)
+                    find(view.getChildAt(i), description)?.let { return it }
+                return null
+            }
+            for (description in listOf("ё", ",", "Пробел", ".", "Новая строка")) {
+                val key = requireNotNull(find(root, description)) { "Missing bottom-row key: $description" }
+                val position = IntArray(2); key.getLocationOnScreen(position)
+                assertTrue("$description overlaps navigation at bottom", position[1] + key.height <= origin[1] + decor.height - safe.bottom)
+                assertTrue("$description overlaps navigation on left", position[0] >= origin[0] + safe.left)
+                assertTrue("$description overlaps navigation on right", position[0] + key.width <= origin[0] + decor.width - safe.right)
+                points.add(position[0] + key.width / 2 to position[1] + key.height - 3)
+            }
+            android.util.Log.i("RSK_IME_GEOMETRY", "nav_left=${safe.left} nav_right=${safe.right} nav_bottom=${safe.bottom} keyboard_bottom_padding=${root.paddingBottom}")
+        }
+        for ((x, y) in points) { assertTrue(device.click(x, y)); device.waitForIdle() }
+        scenario.onActivity { activity ->
+            val field = activity.findViewById<EditText>(R.id.demo_editor)
+            assertEquals("Every bottom-row key must work near its lower edge", "ё, .\n", field.text.toString())
+            field.setText("")
+        }
+    }
+    @Before fun isolateLegacyCases() {
+        ApplicationProvider.getApplicationContext<Context>().getSharedPreferences("keyboard", Context.MODE_PRIVATE)
+            .edit().putBoolean("automatic_writing", false).commit()
+    }
+    @After fun restoreAutomaticDefault() {
+        ApplicationProvider.getApplicationContext<Context>().getSharedPreferences("keyboard", Context.MODE_PRIVATE)
+            .edit().remove("automatic_writing").commit()
+    }
     @Test fun touchKeysAndSpaceApplyOneLocalCorrection() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
@@ -127,6 +174,7 @@ class KeyboardTypingTest {
                 )
             }
 
+            checkBottomRow(device, scenario)
             for (key in listOf("с", "е", "в", "о", "д", "н", "я", "Пробел")) {
                 val button = findKey(key, 8_000)
                 assertNotNull("Missing Russian IME key: $key", button)
@@ -180,6 +228,162 @@ class KeyboardTypingTest {
             scenario.onActivity { activity ->
                 assertEquals("севодня тест",
                     activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+
+            // A two-error dictionary candidate needs an explicit suggestion tap.
+            val lexiconDeadline = android.os.SystemClock.elapsedRealtime() + 10_000
+            while (LexiconLoader.current == null && android.os.SystemClock.elapsedRealtime() < lexiconDeadline) {
+                Thread.sleep(25)
+            }
+            assertNotNull("Large offline dictionary did not load", LexiconLoader.current)
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("прмыет")
+                field.setSelection(field.length())
+            }
+            findKey("Shift", 8_000)!!.click() // refresh candidates without typing a character
+            device.waitForIdle()
+            val suggestion = device.wait(Until.findObject(By.text("привет").pkg(app.packageName).enabled(true)), 8_000)
+            assertNotNull("Dictionary suggestion is missing", suggestion)
+            assertTrue("Dictionary suggestion is disabled", suggestion!!.isEnabled)
+            assertEquals("привет", suggestion.text)
+            suggestion.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("привет ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+            findKey("Удалить", 8_000)!!.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("прмыет", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+            findKey("Пробел", 8_000)!!.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("прмыет ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("ппривет")
+                field.setSelection(field.length())
+            }
+            findKey("Shift", 8_000)!!.click()
+            device.waitForIdle()
+            val keep = findKey("Оставить как набрано", 8_000)
+            assertNotNull("Keep-original action missing", keep)
+            assertTrue(keep!!.isEnabled)
+            keep.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("ппривет ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("Она работал вчера")
+                field.setSelection(field.length())
+            }
+            device.waitForIdle()
+            findKey("Проверить фразу", 8_000)!!.click()
+            val apply = findKey("Применить исправления фразы", 8_000)
+            assertNotNull("Phrase preview did not appear", apply)
+            val proposed = findKey("Предпросмотр исправлений", 8_000)
+            assertEquals("Она работала вчера.", proposed!!.text)
+            apply!!.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("Она работала вчера.", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+            findKey("Удалить", 8_000)!!.click()
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("Она работал вчера", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+
+            // Real idle analysis, no manual Review/Apply: the user's exact example.
+            app.getSharedPreferences("keyboard", Context.MODE_PRIVATE).edit().putBoolean("automatic_writing", true).commit()
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText(""); field.setSelection(0)
+            }
+            // Last letter changes the word immediately: no Space, Review or pause.
+            for (key in listOf("с", "е", "в", "о", "д", "н", "я")) findKey(key, 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("сегодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+            }
+            findKey("Удалить", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("севодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+            }
+            scenario.onActivity { activity -> activity.findViewById<EditText>(R.id.demo_editor).setText("") }
+            for (key in listOf("п", "р", "и", "в", "н", "т")) findKey(key, 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("привет", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+            }
+            findKey("Удалить", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("привнт", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+                val field=activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("я приду сеглдн");field.setSelection(field.length())
+            }
+            findKey("я", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("я приду сегодня", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+            }
+            findKey("Новая строка", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                val text=activity.findViewById<EditText>(R.id.demo_editor).text.toString()
+                assertTrue(text.lowercase().startsWith("я приду сегодня"));assertTrue(text.endsWith("\n"))
+            }
+            scenario.onActivity { activity ->
+                activity.findViewById<EditText>(R.id.demo_editor).setText("")
+            }
+            for (key in listOf("п", "р", "и", "в", "т")) findKey(key, 8_000)!!.click()
+            findKey("Цифры и символы", 8_000)!!.click()
+            findKey("_", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("привт_", activity.findViewById<EditText>(R.id.demo_editor).text.toString().lowercase())
+            }
+            findKey("Цифры и символы", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("привет как дела"); field.setSelection(field.length())
+            }
+            findKey("Пробел", 8_000)!!.click()
+            val punctuated = device.wait(
+                Until.hasObject(By.res(app.packageName, "demo_editor").text("Привет, как дела? ")), 20_000)
+            if (!punctuated) scenario.onActivity { activity ->
+                assertEquals("Automatic punctuation of synthetic input", "Привет, как дела? ",
+                    activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+            assertTrue("Automatic neural punctuation never reached the active editor", punctuated)
+            findKey("у", 8_000)!!.click()
+            assertTrue("Continuing a question left a stale provisional question mark", device.wait(
+                Until.hasObject(By.res(app.packageName, "demo_editor").text("Привет, как дела у")), 8_000))
+            findKey("Удалить", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("Как дела у тебя"); field.setSelection(field.length())
+            }
+            findKey("Пробел", 8_000)!!.click()
+            assertTrue(device.wait(Until.hasObject(By.res(app.packageName, "demo_editor").text("Как дела у тебя? ")), 20_000))
+            findKey("Удалить", 8_000)!!.click()
+            assertTrue(device.wait(Until.hasObject(By.res(app.packageName, "demo_editor").text("Как дела у тебя ")), 5_000))
+            // A cancelled correction must stay cancelled through the next idle pass.
+            android.os.SystemClock.sleep(1_600)
+            scenario.onActivity { activity ->
+                assertEquals("Как дела у тебя ", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
+            }
+            scenario.onActivity { activity ->
+                val field = activity.findViewById<EditText>(R.id.demo_editor)
+                field.setText("Спасибо за помощь"); field.setSelection(field.length())
+            }
+            findKey("Shift", 8_000)!!.click()
+            device.waitForIdle()
+            findKey("Новая строка", 8_000)!!.click()
+            scenario.onActivity { activity ->
+                assertEquals("Спасибо за помощь.\n", activity.findViewById<EditText>(R.id.demo_editor).text.toString())
             }
         }
     }

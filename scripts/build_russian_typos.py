@@ -12,6 +12,7 @@ import hashlib
 import io
 import itertools
 import json
+import random
 import re
 import time
 from pathlib import Path
@@ -133,7 +134,23 @@ def variants(word: str):
             for a in NEIGHBORS.get(word[i], ())[:2]:
                 for b in NEIGHBORS.get(word[i+1], ())[:2]:
                     yield word[:i] + a + b + word[i+2:], "two_neighbor_errors"
-    for row in itertools.zip_longest(near(), drop(), double(), flip(), inserted(), twice()):
+    # Do not take the first ten edits in left-to-right order: that changes
+    # mostly the first two letters of every word. Shuffle each rule separately
+    # with a word-derived seed, covering positions throughout the word.
+    rng = random.Random(int.from_bytes(hashlib.blake2b(
+        word.encode("utf-8"), digest_size=16).digest(), "big"))
+    pools = []
+    for rule in (near, drop, double, flip, inserted, twice):
+        pool = list(rule())
+        rng.shuffle(pool)
+        pools.append(iter(pool))
+    # Half the initial ten candidates are neighboring-key substitutions;
+    # the other five rules each get one. Rejections consume extra candidates,
+    # so final proportions can differ. Exhausted rules fall back to the rest.
+    adjacent, missing, repeated, swapped, extra, two = pools
+    schedule = (adjacent, missing, adjacent, repeated, adjacent, swapped,
+                adjacent, extra, adjacent, two)
+    for row in itertools.zip_longest(*schedule):
         for case in row:
             if case is not None:
                 yield case
@@ -186,6 +203,8 @@ def main():
     (a.out / "words-100000.txt").write_text("\n".join(words)+"\n", encoding="utf-8")
     counts = create_pairs(words, valid, a.out / "typos-1000000.tsv.gz")
     counts.update(stats)
+    counts["generator_version"] = 2
+    counts["selection"] = "word-seeded shuffled positions; 5:1:1:1:1:1 rule schedule"
     counts["sources"] = [{"url": url, "git_blob": sha, "license": license}
                          for url, sha, license in SOURCES.values()]
     if counts["wordforms"] != TARGET or counts["unique_typos"] != TARGET * PER_WORD:

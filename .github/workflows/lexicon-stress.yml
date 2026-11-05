@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/build_russian_typos.py'
+      - 'scripts/verify_russian_typos.py'
       - 'tests/test_russian_typo_generator.py'
       - 'docs/RUSSIAN_LEXICON_QA_RU.md'
       - '.github/workflows/lexicon-stress.yml'
@@ -22,6 +23,8 @@ jobs:
         run: python -m unittest discover -s tests -p test_russian_typo_generator.py -v
       - name: Build 100k licensed words and 1m unique synthetic errors
         run: python scripts/build_russian_typos.py --out reports/lexicon
+      - name: Independently verify every output row and error rule
+        run: python scripts/verify_russian_typos.py --out reports/lexicon
       - name: Fail closed on counts
         run: |
           python -c "import json; x=json.load(open('reports/lexicon/metrics.json')); assert x['wordforms']==100000 and x['unique_typos']>=1000000 and x['distinct_pairs']>=1000000, x"
@@ -30,6 +33,7 @@ jobs:
           name: russian-lexicon-100k-million-typos
           path: |
             reports/lexicon/metrics.json
+            reports/lexicon/validation.json
             reports/lexicon/words-100000.txt
             reports/lexicon/typos-1000000.tsv.gz
             docs/RUSSIAN_LEXICON_QA_RU.md

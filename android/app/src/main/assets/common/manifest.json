@@ -1,0 +1,30 @@
+{
+  "format": "RSKLEX02",
+  "source": "hermitdave/FrequencyWords, content/2018/ru/ru_50k.txt",
+  "source_revision": "f8a65e6ddc17e0baa2e366a909986798d8dbe55b",
+  "source_sha256": "6095f507cc167488ec66ada5a85ac50433503a08ad24a07c6eabdf54352c4e7f",
+  "content_license": "CC BY-SA 3.0",
+  "source_url": "https://github.com/hermitdave/FrequencyWords/blob/f8a65e6ddc17e0baa2e366a909986798d8dbe55b/content/2018/ru/ru_50k.txt",
+  "word_count": 5000,
+  "error_count": 504972,
+  "automatic_candidates": 431214,
+  "ambiguous_manual_candidates": 73758,
+  "known_ambiguity_pool": 591964,
+  "ambiguous_candidates_removed": 66585,
+  "sha256": "073591e3d68514935956a3ac6439ff3baecbc06b39d0d2d0b7310e3646c79cef",
+  "bytes": 12752654,
+  "scope": "Top 5000 frequent dictionary-confirmed dialogue words excluding probable personal names. Exhaustive supported single physical edits; valid forms protected; ambiguity checked against pinned lexicons, short OpenCorpora forms and verified frequency words. Not human-error accuracy or messenger statistics.",
+  "casing_guard": {
+    "file": "punctuation_lowercase.txt",
+    "words": 14412,
+    "sha256": "00434dab11464f313e7f9d2fcdaf3aca8565afa9480a56352cfed9352ee49248",
+    "license": "CC BY-SA 3.0",
+    "source": "Pinned FrequencyWords Russian and OpenCorpora via pymorphy3-dicts-ru 2.4.417150.4580142",
+    "dictionary_files": {
+      "words.dawg": "ae4381a9d6e4e636309ac1a242e480a9470a05723f6673d5fcc3fcf293aa8a9e",
+      "gramtab-opencorpora-int.json": "1a72703ac84c16572deee6a92779a322b59763cbc336021433d52c33160fa05b",
+      "paradigms.array": "dfc465558f1a2760bbde6fa89f0447a5c93896da429efe658fe2f0638954758b"
+    },
+    "rule": "Every dictionary analysis must be known VERB/INFN/ADVB/GRND, without proper-name or abbreviation tags. No QA output selection."
+  }
+}

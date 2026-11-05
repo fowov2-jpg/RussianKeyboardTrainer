@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from build_russian_typos import blob_hash, decode_dictionary, select_words, NEIGHBORS, create_pairs, variants
+from verify_russian_typos import valid_edit
 
 
 class RussianTypoGeneratorTest(unittest.TestCase):
@@ -47,6 +48,30 @@ class RussianTypoGeneratorTest(unittest.TestCase):
 
     def test_variants_never_return_original(self):
         self.assertTrue(all(a != "клавиатура" for a, _ in variants("клавиатура")))
+
+    def test_selection_is_reproducible_and_covers_word_end(self):
+        word = "электрификация"
+        first = list(variants(word))
+        self.assertEqual(first, list(variants(word)))
+        adjacent = [typo for typo, kind in first[:10] if kind == "adjacent_substitution"]
+        self.assertEqual(len(adjacent), 5)
+        positions = [next(i for i in range(len(word)) if typo[i] != word[i]) for typo in adjacent]
+        self.assertTrue(any(i >= len(word) * 2 // 3 for i in positions), positions)
+
+    def test_auditor_checks_actual_edit_not_only_label(self):
+        examples = {
+            "adjacent_substitution": "прмвет",
+            "missing_key": "првет",
+            "double_press": "приивет",
+            "transposition": "првиет",
+            "neighbor_insertion": "примвет",
+            "two_neighbor_errors": "помвет",
+        }
+        for kind, typo in examples.items():
+            with self.subTest(kind=kind):
+                self.assertTrue(valid_edit(typo, "привет", kind))
+                self.assertFalse(valid_edit("йййййй", "привет", kind))
+                self.assertFalse(valid_edit("привет", "привет", kind))
 
 
 if __name__ == "__main__":

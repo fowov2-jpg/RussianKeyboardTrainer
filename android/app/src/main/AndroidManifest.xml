@@ -15,6 +15,14 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".KeyboardSettingsActivity" android:exported="false" />
+        <service android:name=".ConversationAccessibilityService"
+            android:label="@string/conversation_context_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/conversation_accessibility" />
+        </service>
         <service
             android:name=".RussianKeyboardImeService"
             android:label="@string/ime_name"

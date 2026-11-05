@@ -1,5 +1,12 @@
 # Экспериментальный Context Ranker в Android
 
+> Обновление rc4: обученная RUPunct включена в обычный APK и автоматический
+> анализ IME. Добровольный сервис Android предоставляет видимый контекст.
+> [Актуальное поведение и проверки rc4](AUTOMATIC_KEYBOARD_RC4_RU.md).
+> Ниже сохранён документ предыдущего этапа; отметки «ещё не включено»
+> и исторические CI-ссылки не являются статусом rc4.
+
+
 Модель Python `ContextRanker` экспортируется в ONNX FP32 и INT8.
 Класс `OnDeviceRanker` в Android загружает `ranker_int8.onnx`,
 `ranker_metadata.json`, `tokenizer.json` из локальных assets.

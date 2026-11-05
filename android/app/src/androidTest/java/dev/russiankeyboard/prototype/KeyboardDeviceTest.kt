@@ -45,4 +45,25 @@ class KeyboardDeviceTest {
         assertEquals("думаю, что ", engine.onSpace("Я думаю что")?.replacementWithSpace)
         assertNull(engine.onSpace("ты вчера ходил"))
     }
+
+    @Test fun packagedMillionEntryAssetLoadsWithoutHeapDictionary() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        LexiconLoader.warmUp(context)
+        val deadline = android.os.SystemClock.elapsedRealtime() + 10_000
+        while (LexiconLoader.assistant == null && android.os.SystemClock.elapsedRealtime() < deadline) {
+            Thread.sleep(25)
+        }
+        val lexicon = requireNotNull(LexiconLoader.current) { "Packaged mmap lexicon failed to load" }
+        assertEquals(100_000, lexicon.wordCount)
+        assertEquals(1_000_000, lexicon.typoCount)
+        assertEquals("привет", lexicon.lookup("ппривет")?.word)
+        val engine = RussianCorrectionEngine(morphology = { LexiconLoader.morphology }, lexicon = { lexicon })
+        assertEquals("привет ", engine.onSpace("ппривет")?.replacementWithSpace)
+        assertEquals("привет ", engine.suggest("прмыет")?.edit?.replacementWithSpace)
+        assertNull(engine.onSpace("прмыет"))
+        assertNull(engine.onSpace("привет"))
+        val assistant = requireNotNull(LexiconLoader.assistant)
+        assertEquals("Она работала вчера", assistant.review("Она работал вчера")?.proposed)
+        assertEquals("Привет как дела", assistant.review("Ппривет как длела")?.proposed)
+    }
 }

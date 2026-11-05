@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="screen_context_supported">false</bool>
+    <string name="app_name">Русская клавиатура (без чтения чата)</string>
+</resources>

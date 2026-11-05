@@ -1,2 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources><item name="demo_editor" type="id" /></resources>
+<resources>
+    <item name="demo_editor" type="id" />
+    <item name="keyboard_root" type="id" />
+</resources>

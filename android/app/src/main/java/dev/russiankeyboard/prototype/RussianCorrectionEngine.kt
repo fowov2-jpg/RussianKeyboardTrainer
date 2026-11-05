@@ -3,13 +3,18 @@ package dev.russiankeyboard.prototype
 import java.util.Locale
 
 /** Fast deterministic fallback; no neural inference or personal data collection. */
-class RussianCorrectionEngine {
-    enum class Reason { TYPO, COMMA }
+class RussianCorrectionEngine(
+    private val morphology: () -> MorphologyDictionary? = { null },
+    private val lexicon: () -> RussianLexicon? = { null },
+    private val common: () -> RussianLexicon? = { null }
+) {
+    enum class Reason { TYPO, COMMA, COMPLETION, PREDICTION, PHRASE }
     data class Edit(
         val expectedSuffix: String,
         val replacementWithSpace: String,
         val reason: Reason
     )
+    data class Suggestion(val edit: Edit, val automatic: Boolean, val requiresGrowingEvidence: Boolean = false)
 
     private val safeTypos = mapOf(
         "севодня" to "сегодня",
@@ -111,31 +116,60 @@ class RussianCorrectionEngine {
         RegexOption.IGNORE_CASE
     )
 
-    /**
-     * Runs only on space, not on every keystroke.
-     * Never guesses an addressee's gender or inserts a final period from a pause.
-     */
-    fun onSpace(textBeforeCursor: String, isSensitiveField: Boolean = false): Edit? {
-        if (isSensitiveField) return null
-
+    /** Same boundaries and casing for both automatic and user-approved edits. */
+    fun suggestions(textBeforeCursor: String, isSensitiveField: Boolean = false): List<Suggestion> {
+        if (isSensitiveField) return emptyList()
         val wordMatch = wordAtEnd.find(textBeforeCursor)
         if (wordMatch != null) {
             val typed = wordMatch.value
             val normalized = typed.lowercase(Locale.ROOT)
-            val corrected = safeTypos[normalized]
-            if (corrected != null &&
-                hasSafeWordStart(textBeforeCursor, wordMatch.range.first) &&
-                hasConventionalCasing(typed)
-            ) {
+            if (morphology()?.contains(normalized) == true) return emptyList()
+            if (!hasSafeWordStart(textBeforeCursor, wordMatch.range.first) ||
+                !hasConventionalCasing(typed)) return emptyList()
+            val curated = safeTypos[normalized]
+            val candidate = lexicon()?.lookup(normalized)
+            val frequent = common()?.lookup(normalized)
+            val prefix = textBeforeCursor.substring(0, wordMatch.range.first)
+            val trimmed = prefix.trimEnd()
+            val sentenceStart = trimmed.isEmpty() || trimmed.last() in ".!?…" || prefix.substringAfterLast('\n').isBlank()
+            val possibleName = typed.first().isUpperCase() && typed.drop(1).all { it.isLowerCase() } && !sentenceStart
+            val shortAcronym = typed.length <= 4 && typed.all { it.isUpperCase() }
+            val safeFrequent = !possibleName && !shortAcronym
+            val choices = mutableListOf<Triple<String, Boolean, Boolean>>()
+            if (curated != null) choices.add(Triple(curated, true, false))
+            if (candidate != null && candidate.word != curated) {
+                val upgrade = safeFrequent && frequent?.word == candidate.word && frequent.automatic
+                val veto = frequent != null && !frequent.automatic
+                choices.add(Triple(candidate.word, curated == null && !veto && (candidate.automatic || upgrade), upgrade))
+            }
+            if (frequent != null && frequent.word != curated && frequent.word != candidate?.word) {
+                // A conflicting legacy candidate remains ambiguous, regardless of frequency.
+                choices.add(Triple(frequent.word, safeFrequent && curated == null && candidate == null && frequent.automatic, true))
+            }
+            return choices.map { (corrected, automatic, evidence) ->
                 val restored = when {
                     typed.all { it.isUpperCase() } -> corrected.uppercase(Locale.forLanguageTag("ru"))
                     typed.first().isUpperCase() ->
                         corrected.replaceFirstChar { it.uppercase(Locale.forLanguageTag("ru")) }
                     else -> corrected
                 }
-                return Edit(typed, "$restored ", Reason.TYPO)
+                Suggestion(Edit(typed, "$restored ", Reason.TYPO), automatic, evidence)
             }
         }
+        return emptyList()
+    }
+
+    fun suggest(textBeforeCursor: String, isSensitiveField: Boolean = false): Suggestion? =
+        suggestions(textBeforeCursor, isSensitiveField).firstOrNull()
+
+    internal fun hasAmbiguousFrequentCandidate(word: String): Boolean =
+        safeTypos[word.lowercase(Locale.ROOT)] == null && common()?.lookup(word.lowercase(Locale.ROOT))?.automatic == false
+
+    /** Runs only on space. Ambiguous/rare/two-edit candidates need a tap. */
+    fun onSpace(textBeforeCursor: String, isSensitiveField: Boolean = false): Edit? {
+        if (isSensitiveField) return null
+        val suggestion = suggest(textBeforeCursor)
+        if (suggestion?.automatic == true) return suggestion.edit
 
         // Conservative demonstration rule, NOT an AI punctuation model.
         val match = commaBeforeThat.find(textBeforeCursor) ?: return null

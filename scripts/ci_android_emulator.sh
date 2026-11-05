@@ -36,6 +36,12 @@ if [ "${ONNX_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
+# Reproduce the phone's three-button navigation, including the bottom touch strip.
+adb shell cmd overlay list > reports/emulator/navigation-overlays-before.txt
+if ! grep -Fq '[x] com.android.internal.systemui.navbar.threebutton' reports/emulator/navigation-overlays-before.txt; then
+  adb shell cmd overlay enable-exclusive --category --user 0 com.android.internal.systemui.navbar.threebutton
+fi
+adb shell settings get secure navigation_mode > reports/emulator/navigation-mode.txt
 adb install -r "$APK"
 adb shell am start -n "$APP/.MainActivity"
 
@@ -64,7 +70,42 @@ if grep -Eqi "unknown input method|cannot be" reports/emulator/ime-enable.txt re
   exit 1
 fi
 adb shell settings put secure show_ime_with_hard_keyboard 1
-gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest
+adb logcat -c
+# Remove only this suite's old synthetic reports; a skipped run cannot reuse them.
+adb shell run-as "$APP" rm -f files/extended-qa-summary.json files/extended-qa-cases.tsv
+adb shell run-as "$APP" rm -f files/common-qa-before.json files/common-qa-after.json files/common-qa-before.tsv files/common-qa-after.tsv
+# UTP otherwise uninstalls the target app (and its private report files) on exit.
+if gradle -p android --no-daemon --max-workers=2 connectedDebugAndroidTest \
+  -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true; then
+  instrumentation_status=0
+else
+  instrumentation_status=$?
+fi
+# Public/synthetic QA only, written by ExtendedKeyboardDeviceTest; never user text.
+adb exec-out run-as "$APP" cat files/extended-qa-summary.json > reports/emulator/extended-qa-summary.json
+adb exec-out run-as "$APP" cat files/extended-qa-cases.tsv > reports/emulator/extended-qa-cases.tsv
+adb exec-out run-as "$APP" cat files/common-qa-before.json > reports/emulator/common-qa-before.json
+adb exec-out run-as "$APP" cat files/common-qa-after.json > reports/emulator/common-qa-after.json
+adb exec-out run-as "$APP" cat files/common-qa-before.tsv > reports/emulator/common-qa-before.tsv
+adb exec-out run-as "$APP" cat files/common-qa-after.tsv > reports/emulator/common-qa-after.tsv
+python - "$instrumentation_status" <<'PY'
+import json,sys
+from pathlib import Path
+path=Path('reports/emulator/extended-qa-summary.json')
+try:
+    report=json.loads(path.read_text())
+except (OSError, ValueError):
+    print('Extended QA report missing after instrumentation; status='+sys.argv[1])
+    raise SystemExit(0 if int(sys.argv[1]) else 1)
+assert report['cases']==report['unique_inputs']==7500
+print('EXTENDED_ANDROID_QA_SUMMARY='+json.dumps(report,ensure_ascii=False))
+for side in ('before', 'after'):
+    common=json.loads(Path('reports/emulator/common-qa-'+side+'.json').read_text())
+    assert common['cases']==common['unique_inputs']==7500
+    print('COMMON_ANDROID_QA_'+side.upper()+'='+json.dumps(common,ensure_ascii=False))
+PY
+if [ "$instrumentation_status" -ne 0 ]; then exit "$instrumentation_status"; fi
+adb logcat -d -v brief -s RSK_PUNCT_BENCH:I '*:S' > reports/emulator/punctuation-benchmark.txt
 
 adb install -r "$APK"
 adb shell am start -n "$APP/.MainActivity"

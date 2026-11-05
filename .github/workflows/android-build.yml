@@ -5,19 +5,31 @@ on:
     paths:
       - 'android/**'
       - 'scripts/ci_verify_android_corpus.py'
+      - 'scripts/ci_verify_android_lexicon.py'
+      - 'scripts/ci_verify_standalone_apk.py'
+      - 'scripts/build_punctuation_case_guard.py'
       - '.github/workflows/android-build.yml'
   pull_request:
     paths:
       - 'android/**'
       - 'scripts/ci_verify_android_corpus.py'
+      - 'scripts/ci_verify_android_lexicon.py'
+      - 'scripts/ci_verify_standalone_apk.py'
+      - 'scripts/build_punctuation_case_guard.py'
       - '.github/workflows/android-build.yml'
   workflow_dispatch:
+    inputs:
+      publish_rc7:
+        description: 'Publish the already verified rc7 APK artifacts as a prerelease'
+        type: boolean
+        default: false
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
+    if: ${{ !inputs.publish_rc7 }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -39,12 +51,12 @@ jobs:
       # Compile Android instrumentation sources without starting an emulator.
       # This detects Kotlin errors in androidTest before slow AVD workflows run.
       - name: Unit tests, Android lint, APK and instrumentation compile
-        run: gradle -p android --no-daemon --max-workers=2 testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
-      - name: Require 10000+ distinct word/sentence regression tests
+        run: gradle -p android --no-daemon --max-workers=2 testDebugUnitTest lintDebug lintStandalone assembleDebug assembleStandalone assembleDebugAndroidTest
+      - name: Verify actual million-entry runtime coverage and packaged dictionaries
         run: |
-          python3 scripts/ci_verify_android_corpus.py \
-            --reports android/app/build/test-results/testDebugUnitTest \
-            --minimum 10000 --summary "$GITHUB_STEP_SUMMARY"
+          python3 scripts/ci_verify_android_lexicon.py --summary "$GITHUB_STEP_SUMMARY"
+          python3 scripts/ci_verify_android_lexicon.py --apks android/app/build/outputs/apk/standalone
+          python3 scripts/ci_verify_standalone_apk.py
       - name: Upload unit and lint reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -54,6 +66,14 @@ jobs:
             android/app/build/test-results/testDebugUnitTest/
             android/app/build/reports/tests/testDebugUnitTest/
             android/app/build/reports/lint-results-debug.*
+            android/app/build/reports/lint-results-standalone.*
+            android/app/build/reports/standalone-apk.json
+            android/app/build/reports/lexicon-runtime.json
+            android/app/build/reports/context-runtime.json
+            android/app/build/reports/extended-qa/
+            android/app/src/sharedTest/fixtures/extended_qa_manifest.json
+            android/app/src/main/assets/lexicon/manifest.json
+            android/app/src/main/assets/context/manifest.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Audit packaged APK permissions
@@ -96,5 +116,69 @@ jobs:
           path: |
             android/app/build/outputs/apk/debug/*.apk
             android/app/build/outputs/apk/debug/SHA256SUMS.txt
+            android/app/build/outputs/apk/standalone/*.apk
           if-no-files-found: error
           retention-days: 7
+      - name: Package the complete project source
+        shell: bash
+        run: |
+          mkdir -p reports/source
+          git archive --format=zip --prefix=RussianKeyboardTrainer/ --output=reports/source/RussianKeyboardTrainer-source.zip HEAD
+          git rev-parse HEAD > reports/source/SOURCE_COMMIT.txt
+          sha256sum reports/source/RussianKeyboardTrainer-source.zip > reports/source/SHA256SUMS.txt
+      - name: Upload complete project source
+        uses: actions/upload-artifact@v4
+        with:
+          name: russian-keyboard-complete-source
+          path: reports/source/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-verified-rc7:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_rc7 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Verify source build and download tested APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run view 41860371920 --json conclusion,headSha > build.json
+          python - <<'PY'
+          import json
+          b=json.load(open('build.json'))
+          assert b['conclusion']=='success'
+          assert b['headSha']=='2aa0485bf0da31096caee3833053ef65986a8e8e'
+          PY
+          gh run download 41860371920 -n russian-keyboard-debug-apk -D apks
+          cd apks
+          sha256sum -c SHA256SUMS.txt
+          mv app-arm64-v8a-debug.apk RussianKeyboard-1.0.0-rc7-ARM64.apk
+          mv app-armeabi-v7a-debug.apk RussianKeyboard-1.0.0-rc7-ARM32.apk
+          sha256sum RussianKeyboard-*.apk > RELEASE-SHA256SUMS.txt
+      - name: Publish downloadable prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'NOTES'
+          Тестовая Android-клавиатура rc7.
+
+          Скачайте **RussianKeyboard-1.0.0-rc7-ARM64.apk** в Assets — для большинства современных телефонов. Для старых устройств доступен ARM32. Откройте APK, разрешите установку из браузера и включите клавиатуру в приложении.
+
+          Добавлен офлайн-индекс 5000 частых слов и защита незавершённого слова. Все пять проверок исходного коммита прошли; выполнены 7500 новых проверок и прежний набор 7500. Пунктуация и неоднозначные опечатки ещё допускают ошибки. Физический телефон не проверен.
+
+          APK взяты без пересборки из успешной сборки GitHub Actions 41860371920. Они подписаны тестовым ключом CI. Если Android сообщает о несовместимости подписи с ранее установленным APK, для перехода понадобится удалить старую версию; её локальные настройки при этом потеряются.
+
+          Код и результаты: https://github.com/fowov2-jpg/RussianKeyboardTrainer/pull/6
+          Проверенный коммит: 2aa0485bf0da31096caee3833053ef65986a8e8e
+          NOTES
+          gh release create v1.0.0-rc7 --target 2aa0485bf0da31096caee3833053ef65986a8e8e --draft --prerelease --title 'RussianKeyboard 1.0.0-rc7 — APK для Android' --notes-file notes.md
+          gh release upload v1.0.0-rc7 apks/RussianKeyboard-1.0.0-rc7-ARM64.apk apks/RussianKeyboard-1.0.0-rc7-ARM32.apk apks/RELEASE-SHA256SUMS.txt
+          gh release edit v1.0.0-rc7 --draft=false
+          gh release view v1.0.0-rc7 --json url,assets

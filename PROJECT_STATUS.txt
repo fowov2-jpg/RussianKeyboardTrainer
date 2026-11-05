@@ -1,9 +1,18 @@
 RussianKeyboardTrainer 1.1.0 CoGo
-STATUS: READY FOR CI / GPU TRAINING
+STATUS: ANDROID 1.0.0-rc3 LOCAL TEST BUILD / TRAINER READY FOR CI
+- Context model: 150k licensed Tatoeba sentences, sentence-group split before training
+- Unseen typo search, phrase preview/apply/Undo, third-person agreement suggestions
+- OpenCorpora DAWG wordform protection; Kotlin mapped reader checked against Python
+- Single cancellable background queue; RU/EN/symbols; settings
+- Android: 100,000 wordforms / 1,000,000 indexed synthetic typos
+- Kotlin runtime integration: every million-row candidate checked
+- Offline suggestions, keep-original, conservative automatic correction, Undo
+- Full Android unit tests, lint, debug APK and instrumentation compilation locally
+- Current rc3 emulator/physical-device execution and GitHub CI not yet run
 - listwise rank training
 - KEEP-margin calibration
 - leakage-safe sentence splits
 - hard-negative mining
 - ONNX + INT8 export metadata
-- pytest: 8 passed locally
+- Trainer checks above are historical; full ML training was not rerun for rc2
 - CI: validate includes dataset + 1-epoch training smoke

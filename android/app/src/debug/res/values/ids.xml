@@ -1,0 +1,5 @@
+<resources>
+    <item name="conversation_title" type="id" />
+    <item name="message_text" type="id" />
+    <item name="sensitive_editor" type="id" />
+</resources>

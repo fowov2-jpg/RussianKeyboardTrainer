@@ -1,0 +1,37 @@
+{
+  "format": "common-qa-v1",
+  "cases": 7500,
+  "unique_inputs": 7500,
+  "by_kind": {
+    "typo": 3000,
+    "word_keep": 2000,
+    "protected": 500,
+    "restore": 1000,
+    "phrase_keep": 1000
+  },
+  "distinct_typo_targets": 1500,
+  "distinct_source_phrases": 1000,
+  "corpus_phrases": 900,
+  "authored_phrases": 100,
+  "source": "FrequencyWords 2018 Russian / OpenSubtitles dialogue-frequency proxy",
+  "source_revision": "f8a65e6ddc17e0baa2e366a909986798d8dbe55b",
+  "source_sha256": "6095f507cc167488ec66ada5a85ac50433503a08ad24a07c6eabdf54352c4e7f",
+  "license": "CC BY-SA 3.0",
+  "source_url": "https://github.com/hermitdave/FrequencyWords/blob/f8a65e6ddc17e0baa2e366a909986798d8dbe55b/content/2018/ru/ru_50k.txt",
+  "sha256": "4930dbeba1b743f3dd4e339bb830364998cb71bc92d33fce12fdf3176871c7c2",
+  "rank_range_for_typo_targets": [
+    3,
+    1622
+  ],
+  "corpus_lexical_overlap_previous_qa": 0,
+  "authored_lexical_overlap_previous_qa": 0,
+  "phrase_types": {
+    ".": 783,
+    "?": 188,
+    "!": 29
+  },
+  "selection": "First 1500 dictionary-verified non-name frequent targets; two independent synthetic physical errors per target. First 2000 valid frequency words for KEEP. 900 unused short dialogue-like Tatoeba test sentences ranked by mean log word frequency, 100 authored controls. No messenger data or actual phrase popularity claims.",
+  "scope": "Frequency-aware integration and language evaluation; synthetic edits use the same declared keyboard-error model as the compiled index, so recovery is coverage, NOT real human-typo accuracy. Pretrained model train overlap unknown.",
+  "reference_logits_sha256": "ebd841ab88936cfac7de2ec1092d0393094184b0672369ecba5088340ab2a557",
+  "reference_model_sha256": "b105da023474d98aa13ba18953ae67b04b17bd0595034bc06030c17536893933"
+}
