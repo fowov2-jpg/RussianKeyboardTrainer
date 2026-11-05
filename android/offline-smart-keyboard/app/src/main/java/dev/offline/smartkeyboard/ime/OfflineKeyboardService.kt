@@ -134,11 +134,17 @@ class OfflineKeyboardService : InputMethodService() {
         if (word.length < 2 || !autocorrectEnabled) return
         val task = Runnable {
             predictionWorker.execute {
-                val decision = engine.decide(word, before)
+                // All dictionary work is off the UI thread. The completion
+                // cache is only used for visible hints, NEVER as an autocorrect.
+                val activeIndex = engine
+                val decision = activeIndex.decide(word, before)
+                val displaySuggestions = (
+                    decision.suggestions + activeIndex.completions(word)
+                ).distinctBy { it.word }.take(3)
                 uiHandler.post {
                     if (revision == predictionRevision &&
                         original.toString() == word && previousWord == before) {
-                        suggestions = decision.suggestions
+                        suggestions = displaySuggestions
                         lastPrediction = decision
                         predictedWord = word
                         // Suggestions only; never rewrite the editor during typing.
