@@ -61,27 +61,9 @@ class OfflineKeyboardService : InputMethodService() {
         reset()
         val type = attribute?.inputType ?: InputType.TYPE_NULL
         val kind = type and InputType.TYPE_MASK_CLASS
-        val variation = type and InputType.TYPE_MASK_VARIATION
-        val password = (kind == InputType.TYPE_CLASS_TEXT && variation in setOf(
-            InputType.TYPE_TEXT_VARIATION_PASSWORD,
-            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
-            InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
-        )) || (kind == InputType.TYPE_CLASS_NUMBER &&
-            variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD)
-        val ordinaryText = kind == InputType.TYPE_CLASS_TEXT && variation in setOf(
-            InputType.TYPE_TEXT_VARIATION_NORMAL,
-            InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE,
-            InputType.TYPE_TEXT_VARIATION_LONG_MESSAGE,
-            InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT
-        )
-        // This IME never stores typed content or learns from input.
-        // IME_FLAG_NO_PERSONALIZED_LEARNING forbids personalization; it does
-        // NOT forbid transient, local spelling correction.
-        // Likewise, some messaging/web editors request NO_SUGGESTIONS while
-        // the user explicitly enables our offline autocorrect keyboard.
-        // Only ordinary prose fields are eligible. Password and non-prose
-        // fields remain excluded above.
-        autocorrectEnabled = ordinaryText && !password
+        // Chat editors may disallow learning, but still permit local correction.
+        // No personalization is ever stored by this keyboard.
+        autocorrectEnabled = AutocorrectPolicy.enabled(type)
         numeric = kind == InputType.TYPE_CLASS_NUMBER || kind == InputType.TYPE_CLASS_PHONE
     }
 
