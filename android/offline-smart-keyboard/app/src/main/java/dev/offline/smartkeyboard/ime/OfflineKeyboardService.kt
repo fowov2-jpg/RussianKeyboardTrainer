@@ -8,6 +8,7 @@ import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -28,6 +29,7 @@ class OfflineKeyboardService : InputMethodService() {
     private val ru = Locale.forLanguageTag("ru-RU")
     private val original = StringBuilder()
     private val suggestionButtons = mutableListOf<Button>()
+    private val letterButtons = mutableListOf<Pair<Button, Char>>()
     private var suggestions: List<BlockSearchCorrector.Suggestion> = emptyList()
     private var autocorrectEnabled = false
     private var numeric = false
@@ -74,6 +76,12 @@ class OfflineKeyboardService : InputMethodService() {
             (attribute.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
         autocorrectEnabled = ordinaryText && !password && !noSuggestions && !noLearning
         numeric = kind == InputType.TYPE_CLASS_NUMBER || kind == InputType.TYPE_CLASS_PHONE
+    }
+
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        // Input fields can change between text and numeric modes.
+        redraw()
     }
 
     override fun onFinishInput() {
@@ -140,73 +148,144 @@ class OfflineKeyboardService : InputMethodService() {
 
     private fun makeKeyboard(): View {
         suggestionButtons.clear()
+        letterButtons.clear()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(1), dp(4), dp(1), dp(6))
-            setBackgroundColor(Color.rgb(218, 222, 231))
+            setPadding(dp(3), dp(3), dp(3), dp(4))
+            setBackgroundColor(Color.rgb(215, 220, 229))
         }
-        val suggestionRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+
+        // Gboard-like thin suggestion strip, never three empty giant keys.
+        val suggestionRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
         repeat(3) { index ->
-            val button = key("", 1f, 43) { choose(index) }
+            val button = key("", 1f, 39, suggestion = true) { choose(index) }
             suggestionButtons.add(button)
             suggestionRow.addView(button)
         }
         root.addView(suggestionRow)
-        val lines = if (numeric) listOf("123", "456", "789", ".0-")
-            else listOf("йцукенгшщзхъ", "фывапролджэ", "ячсмитьбю")
-        for (line in lines) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            for (letter in line) {
-                row.addView(key(if (shift) letter.uppercaseChar().toString() else letter.toString(), 1f, 64) {
-                    press(letter)
-                })
+
+        if (!numeric) {
+            for (line in listOf("йцукенгшщзхъ", "фывапролджэ")) {
+                val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                for (letter in line) {
+                    val button = key(letter.toString(), 1f, 53) { press(letter) }
+                    letterButtons.add(button to letter)
+                    row.addView(button)
+                }
+                root.addView(row)
             }
+            val third = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            third.addView(key("⇧", 1.35f, 53, special = true) {
+                shift = !shift
+                updateShiftLabels()
+            })
+            for (letter in "ячсмитьбю") {
+                val button = key(letter.toString(), 1f, 53) { press(letter) }
+                letterButtons.add(button to letter)
+                third.addView(button)
+            }
+            third.addView(key("⌫", 1.35f, 53, special = true, repeating = true) { backspace() })
+            root.addView(third)
+        } else {
+            // Three compact rows like a normal phone keyboard; no screen-high numpad.
+            for (line in listOf("1234567890", "@#%&*-+/:")) {
+                val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                for (symbol in line) row.addView(key(symbol.toString(), 1f, 53) { press(symbol) })
+                root.addView(row)
+            }
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            for (symbol in "(),!?;'") row.addView(key(symbol.toString(), 1f, 53) { press(symbol) })
+            row.addView(key("⌫", 1.6f, 53, special = true, repeating = true) { backspace() })
             root.addView(row)
         }
+
         val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        controls.addView(key(if (numeric) "РУС" else "123", 1.0f, 50) {
+        controls.addView(key(if (numeric) "АБВ" else "?123", 1.25f, 51, special = true) {
             finishWord()
             numeric = !numeric
             redraw()
         })
-        controls.addView(key("⇧", .65f, 50) { shift = !shift; redraw() })
-        controls.addView(key(",", .55f, 50) { punctuation(",") })
-        controls.addView(key("Пробел", 2.8f, 50) { space() })
-        controls.addView(key(".", .55f, 50) { punctuation(".") })
-        controls.addView(key("⌫", .75f, 50) { backspace() })
+        controls.addView(key(",", .65f, 51, special = true) { punctuation(",") })
+        controls.addView(key("Русский", 4.2f, 51) { space() }.apply { textSize = 14f })
+        controls.addView(key(".", .65f, 51, special = true) { punctuation(".") })
+        controls.addView(key("↵", 1.25f, 51, special = true) { enter() })
         root.addView(controls)
-        val extra = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        extra.addView(key("?", 1f, 40) { punctuation("?") })
-        extra.addView(key("!", 1f, 40) { punctuation("!") })
-        extra.addView(key("↵", 2f, 40) { enter() })
-        root.addView(extra)
         updateSuggestions()
         return root
     }
 
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-
-    private fun key(textValue: String, weight: Float, heightDp: Int, action: () -> Unit): Button =
-        Button(this).apply {
-            text = textValue
-            textSize = if (textValue.length > 5) 12f else 17f
-            isAllCaps = false
-            gravity = Gravity.CENTER
-            setTextColor(Color.rgb(26, 34, 45))
-            setPadding(0, 0, 0, 0)
-            minWidth = 0
-            minimumWidth = 0
-            minHeight = 0
-            minimumHeight = 0
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(6).toFloat()
-            }
-            layoutParams = LinearLayout.LayoutParams(0, dp(heightDp), weight).apply {
-                setMargins(dp(1), dp(1), dp(1), dp(1))
-            }
-            setOnClickListener { action() }
+    private fun updateShiftLabels() {
+        for ((button, letter) in letterButtons) {
+            button.text = if (shift) letter.uppercaseChar().toString() else letter.toString()
         }
+    }
+
+    private fun dp(value: Int) = (value * resources.displayMetrics.density + .5f).toInt()
+
+    private fun key(
+        label: String,
+        weight: Float,
+        heightDp: Int,
+        special: Boolean = false,
+        suggestion: Boolean = false,
+        repeating: Boolean = false,
+        action: () -> Unit
+    ): Button = Button(this).apply {
+        text = label
+        textSize = if (suggestion) 15f else if (label.length > 3) 14f else 20f
+        isAllCaps = false
+        gravity = Gravity.CENTER
+        setTextColor(Color.rgb(35, 41, 53))
+        setPadding(0, 0, 0, 0)
+        minWidth = 0
+        minimumWidth = 0
+        minHeight = 0
+        minimumHeight = 0
+        stateListAnimator = null
+        elevation = 0f
+        background = GradientDrawable().apply {
+            setColor(
+                when {
+                    suggestion -> Color.TRANSPARENT
+                    special -> Color.rgb(185, 195, 213)
+                    else -> Color.rgb(250, 251, 253)
+                }
+            )
+            cornerRadius = dp(if (suggestion) 0 else 5).toFloat()
+        }
+        layoutParams = LinearLayout.LayoutParams(0, dp(heightDp), weight).apply {
+            setMargins(dp(1), dp(if (suggestion) 0 else 2), dp(1), dp(if (suggestion) 0 else 2))
+        }
+        setOnClickListener { action() }
+        // Android's regular Button click occurs on ACTION_UP and can be lost when
+        // the thumb slides a few pixels. Register the key on ACTION_DOWN instead.
+        val repeatAction = object : Runnable {
+            override fun run() {
+                if (isPressed) {
+                    action()
+                    uiHandler.postDelayed(this, 65L)
+                }
+            }
+        }
+        setOnTouchListener { button, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    button.isPressed = true
+                    button.performClick()
+                    if (repeating) uiHandler.postDelayed(repeatAction, 400L)
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    button.isPressed = false
+                    uiHandler.removeCallbacks(repeatAction)
+                    true
+                }
+                else -> true
+            }
+        }
+    }
 
     private fun redraw() = setInputView(makeKeyboard())
 
