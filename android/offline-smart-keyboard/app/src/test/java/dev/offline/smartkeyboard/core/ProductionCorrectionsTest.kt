@@ -25,7 +25,12 @@ class ProductionCorrectionsTest {
     @Test fun realChatTyposAreCorrected() {
         assertEquals("Сейчас", engine.decide("Сецчас").text)
         assertEquals("исправление", engine.decide("испрачление").text)
-        assertEquals("пропало", engine.decide("пропалр").text)
+        // "пропалр" could mean "пропало" or "пропали"; show candidates
+        // instead of silently guessing the intended meaning.
+        assertEquals("пропалр", engine.decide("пропалр").text)
+        val alternatives = engine.suggestions("пропалр", limit = 5).map { it.word }
+        assertTrue(alternatives.contains("пропало"))
+        assertTrue(alternatives.contains("пропали"))
     }
 
     @Test fun correctlyTypedWordsAndAmbiguousShortCodesAreNotChanged() {
