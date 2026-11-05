@@ -11,8 +11,8 @@ android {
         applicationId = "dev.offline.smartkeyboard"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.8.0"
+        versionCode = 9
+        versionName = "0.9.0"
     }
 
     compileOptions {
@@ -22,4 +22,9 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+// Verify touch-proximity correction on real user typo examples.
+dependencies {
+    testImplementation("junit:junit:4.13.2")
 }
