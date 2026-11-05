@@ -14,7 +14,8 @@ class BlockSearchCorrector(
     input: List<FastCorrector.Entry>,
     private val context: ContextRanker = ContextRanker.EMPTY,
     private val grammarHints: GrammarHints = GrammarHints.EMPTY,
-    private val priorityWords: Set<String> = emptySet()
+    private val priorityWords: Set<String> = emptySet(),
+    private val corpusTypos: CorpusTypos = CorpusTypos.EMPTY
 ) {
     data class Suggestion(val word: String, val score: Double, val edits: Int, val proximityCost: Double = edits.toDouble())
     data class Decision(val text: String, val changed: Boolean, val suggestions: List<Suggestion>)
@@ -102,6 +103,10 @@ class BlockSearchCorrector(
         }
         exactWords[word]?.let(::add)
         reviewed[word]?.let { exactWords[it]?.let(::add) }
+        // Human-annotated corpus pairs are suggestions, NOT forced changes.
+        val corpusHint = if (exactWords.containsKey(word)) null
+            else corpusTypos.candidate(word)
+        corpusHint?.let { exactWords[it]?.let(::add) }
         // Letters come first: avoid losing close lexical matches in crowded numeric buckets.
         deletedWords[word]?.forEach(::add) // query omits one character
         // Two missed taps are common in fast one-thumb input. Retrieve candidates,
@@ -132,7 +137,8 @@ class BlockSearchCorrector(
                 val proximity = KeyProximity.distance(word, entry.word)
                 val score = proximity * 3.0 + groupPenalty -
                     ln(entry.frequency.coerceAtLeast(1).toDouble()) * 0.09 -
-                    context.bonus(previous, entry.word) + exactCredit
+                    context.bonus(previous, entry.word) + exactCredit -
+                    if (corpusHint == entry.word) 0.65 else 0.0
                 Suggestion(entry.word, score, edits, proximity)
             }
         }.sortedWith(compareBy<Suggestion> { it.score }.thenBy { it.word }).take(limit).toList()
