@@ -118,8 +118,11 @@ class BlockSearchCorrector(
             }
         }
         val code = T9Predictor.encode(word)
-        if (code != null) recovery.collect(code, ::add)
-        val ranked = pool.values.asSequence().mapNotNull { entry ->
+        // Preserve the tested v0.14 ranking whenever it is confident.
+        // Advanced recovery only runs if the ordinary dictionary & shard
+        // search failed to identify a reliable auto-correction.
+        if (code != null) digitIndex.collect(code, ::add)
+        fun rank(): List<Suggestion> = pool.values.asSequence().mapNotNull { entry ->
             val edits = distance(word, entry.word, 2)
             if (edits > 2 && reviewed[word] != entry.word) null
             else {
@@ -133,6 +136,12 @@ class BlockSearchCorrector(
                 Suggestion(entry.word, score, edits, proximity)
             }
         }.sortedWith(compareBy<Suggestion> { it.score }.thenBy { it.word }).take(limit).toList()
+        var ranked = rank()
+        if (code != null && !exactWords.containsKey(word) &&
+            automaticTarget(word, ranked) == null) {
+            recovery.collectFallback(code, ::add)
+            ranked = rank()
+        }
 
         // A correctly typed word stays intact, but if a nearby pronoun implies
         // another verb form, offer it as the FIRST selectable suggestion.
@@ -151,15 +160,11 @@ class BlockSearchCorrector(
         return ranked
     }
 
-    /** Autochange only an unrecognized word with a strong enough winning candidate. */
-    fun decide(raw: String, previous: String? = null): Decision {
-        if (raw.length !in 3..24 || raw.any { !it.isLetter() })
-            return Decision(raw, false, suggestions(raw, previous = previous))
-        val word = raw.lowercase(locale)
-        val picks = suggestions(raw, previous = previous)
-        if (exactWords.containsKey(word)) return Decision(raw, false, picks)
+    /** Shared confidence threshold so fallback never displaces a good baseline. */
+    private fun automaticTarget(word: String, picks: List<Suggestion>): String? {
+        if (exactWords.containsKey(word)) return null
         val preferred = reviewed[word]
-        val target = if (preferred != null && exactWords.containsKey(preferred)) preferred else {
+        return if (preferred != null && exactWords.containsKey(preferred)) preferred else {
             val best = picks.firstOrNull()
             val second = picks.getOrNull(1)
             val doubleOmission = best != null &&
@@ -178,12 +183,21 @@ class BlockSearchCorrector(
             val requiredMargin = when {
                 doubleOmission -> 2.0
                 best?.edits == 2 -> 1.4
-                raw.length == 3 -> 2.5
+                word.length == 3 -> 2.5
                 else -> 1.5
             }
             if (candidateIsReliable && best != null && margin >= requiredMargin)
                 best.word else null
         }
+    }
+
+    /** Autochange only an unrecognized word with a strong enough winning candidate. */
+    fun decide(raw: String, previous: String? = null): Decision {
+        if (raw.length !in 3..24 || raw.any { !it.isLetter() })
+            return Decision(raw, false, suggestions(raw, previous = previous))
+        val word = raw.lowercase(locale)
+        val picks = suggestions(raw, previous = previous)
+        val target = automaticTarget(word, picks)
         if (target == null || target == word) return Decision(raw, false, picks)
         val result = if (raw.first().isUpperCase()) target.replaceFirstChar { it.titlecase(locale) } else target
         return Decision(result, true, picks)
