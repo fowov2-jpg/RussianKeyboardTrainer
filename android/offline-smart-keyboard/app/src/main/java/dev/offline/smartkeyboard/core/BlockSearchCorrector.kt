@@ -126,7 +126,7 @@ class BlockSearchCorrector(
 
     /** Autochange only an unrecognized word with a strong enough winning candidate. */
     fun decide(raw: String, previous: String? = null): Decision {
-        if (raw.length !in 4..24 || raw.any { !it.isLetter() })
+        if (raw.length !in 3..24 || raw.any { !it.isLetter() })
             return Decision(raw, false, suggestions(raw, previous = previous))
         val word = raw.lowercase(locale)
         val picks = suggestions(raw, previous = previous)
@@ -143,8 +143,8 @@ class BlockSearchCorrector(
                 second.score - best.score else Double.POSITIVE_INFINITY
             // Two-letter changes are accepted only when BOTH are plausibly
             // adjacent touch errors and the next candidate is clearly worse.
-            if (candidateIsReliable && margin >=
-                (if (best!!.edits == 2) 1.4 else 1.5)
+            if (candidateIsReliable && best != null &&
+                margin >= (if (best.edits == 2) 1.4 else if (raw.length == 3) 2.5 else 1.5)
             ) best.word else null
         }
         if (target == null || target == word) return Decision(raw, false, picks)
