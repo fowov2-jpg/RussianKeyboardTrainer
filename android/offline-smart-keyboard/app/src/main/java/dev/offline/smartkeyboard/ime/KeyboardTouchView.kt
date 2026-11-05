@@ -42,6 +42,7 @@ internal class KeyboardTouchView(
     private var shifted = false
     private var suggestions: List<String> = emptyList()
     private var typed = ""
+    private var correctionEnabled = false
     private var safeBottom = if (Build.VERSION.SDK_INT >= 35) dp(60) else 0
 
     init {
@@ -51,12 +52,13 @@ internal class KeyboardTouchView(
         setBackgroundColor(Color.rgb(215, 220, 229))
     }
 
-    fun update(modeNumeric: Boolean, shift: Boolean, words: List<String>, current: String) {
+    fun update(modeNumeric: Boolean, shift: Boolean, words: List<String>, current: String, correctionEnabled: Boolean) {
         val layoutChanged = modeNumeric != numericMode
         numericMode = modeNumeric
         shifted = shift
         suggestions = words.take(3)
         typed = current
+        this.correctionEnabled = correctionEnabled
         if (layoutChanged) rebuild()
         invalidate()
     }
@@ -172,7 +174,7 @@ internal class KeyboardTouchView(
             val isSuggestion = key.code.startsWith("SUGGEST:")
             val i = if (isSuggestion) key.code.substringAfter(':').toInt() else -1
             val text = if (isSuggestion) {
-                suggestions.getOrNull(i) ?: if (i == 1) (typed.ifEmpty { "RU" }) else ""
+                suggestions.getOrNull(i) ?: if (i == 1) (typed.ifEmpty { if (correctionEnabled) "RU · АВТО" else "RU" }) else ""
             } else if (shifted && key.code.startsWith("CHAR:") && key.label.singleOrNull()?.isLetter() == true) {
                 key.label.uppercase()
             } else key.label
