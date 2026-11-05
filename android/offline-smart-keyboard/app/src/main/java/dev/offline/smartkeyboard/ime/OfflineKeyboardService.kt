@@ -74,10 +74,14 @@ class OfflineKeyboardService : InputMethodService() {
             InputType.TYPE_TEXT_VARIATION_LONG_MESSAGE,
             InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT
         )
-        val noSuggestions = (type and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0
-        val noLearning = attribute != null &&
-            (attribute.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
-        autocorrectEnabled = ordinaryText && !password && !noSuggestions && !noLearning
+        // This IME never stores typed content or learns from input.
+        // IME_FLAG_NO_PERSONALIZED_LEARNING forbids personalization; it does
+        // NOT forbid transient, local spelling correction.
+        // Likewise, some messaging/web editors request NO_SUGGESTIONS while
+        // the user explicitly enables our offline autocorrect keyboard.
+        // Only ordinary prose fields are eligible. Password and non-prose
+        // fields remain excluded above.
+        autocorrectEnabled = ordinaryText && !password
         numeric = kind == InputType.TYPE_CLASS_NUMBER || kind == InputType.TYPE_CLASS_PHONE
     }
 
@@ -185,7 +189,8 @@ class OfflineKeyboardService : InputMethodService() {
             modeNumeric = numeric,
             shift = shift,
             words = suggestions.map { capitalize(it.word, capitalizeWord) },
-            current = if (original.isEmpty()) "" else capitalize(original.toString(), capitalizeWord)
+            current = if (original.isEmpty()) "" else capitalize(original.toString(), capitalizeWord),
+            correctionEnabled = autocorrectEnabled
         )
     }
 
