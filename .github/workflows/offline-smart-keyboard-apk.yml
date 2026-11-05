@@ -39,6 +39,19 @@ jobs:
       - name: Install Android API 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
+      # GERA lacks an explicit redistribution license. Fetch ephemerally
+      # for aggregate-only validation. The source is excluded from APK/artifacts.
+      - name: Download GERA external validation corpus (not packaged)
+        working-directory: android/offline-smart-keyboard
+        run: |
+          mkdir -p data/raw
+          curl --fail --location --silent --show-error --retry 2 \
+            "https://raw.githubusercontent.com/ReginaNasyrova/GERA/main/GERA.dev.m2" \
+            --output data/raw/GERA.dev.m2
+          curl --fail --location --silent --show-error --retry 2 \
+            "https://raw.githubusercontent.com/ReginaNasyrova/GERA/main/GERA.test.m2" \
+            --output data/raw/GERA.test.m2
+
       - name: Run typo regression tests and build debug APK
         working-directory: android/offline-smart-keyboard
         run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
